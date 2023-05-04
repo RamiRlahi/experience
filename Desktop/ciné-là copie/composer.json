@@ -1,0 +1,10 @@
+{
+    "name": "ahmed/cinela",
+    "description": "QRcode",
+    "type": "project",
+    "minimum-stability": "stable",
+    "require": {
+        "bacon/bacon-qr-code": "^2.0",
+        "endroid/qr-code": "^4.8"
+    }
+}
