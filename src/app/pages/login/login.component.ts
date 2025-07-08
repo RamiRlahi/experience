@@ -7,7 +7,7 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { AuthService } from '../../services/auth';
 import { HttpClientModule } from '@angular/common/http';
 
 @Component({
@@ -25,7 +25,7 @@ export class LoginComponent {
   constructor(
     private fb: FormBuilder,
     private router: Router,
-    private authService: AuthService
+    private AuthService: AuthService
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -38,11 +38,11 @@ export class LoginComponent {
       this.loading = true;
       this.errorMessage = '';
 
-      this.authService.login(this.loginForm.value).subscribe({
+      this.AuthService.login(this.loginForm.value).subscribe({
         next: () => {
           this.router.navigate(['/dashboard']);
         },
-        error: (err) => {
+        error: (err:any) => {
           this.errorMessage = err.error?.message || 'Login failed';
         },
         complete: () => {
