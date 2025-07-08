@@ -26,7 +26,13 @@ export class LoginComponent {
     if (this.loginForm.valid) {
       this.loading = true;
       this.errorMessage = '';
-      // Logic for handling login can be added here later
+      const { email, password } = this.loginForm.value;
+      // Demo credentials
+      if (email === 'demo@example.com' && password === 'password') {
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.errorMessage = 'Invalid email or password.';
+      }
       this.loading = false;
     }
   }

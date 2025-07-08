@@ -5,3 +5,8 @@
 body {
   font-family: 'Poppins', Arial, sans-serif;
 }
+
+:root {
+  --primary-color: #F87060;
+  --secondary-color: #102542;
+}
