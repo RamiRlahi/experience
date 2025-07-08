@@ -56,4 +56,8 @@ export class LoginComponent {
     const field = this.loginForm.get(fieldName);
     return field ? field.invalid && (field.dirty || field.touched) : false;
   }
+
+  goToRegister(): void {
+    this.router.navigate(['/register']);
+  }
 }

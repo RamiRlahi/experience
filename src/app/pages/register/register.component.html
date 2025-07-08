@@ -1,0 +1,70 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>Create Account</h1>
+      <p>Register a new account</p>
+    </div>
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input 
+          type="text" 
+          id="name" 
+          formControlName="name"
+          [class.error]="isFieldInvalid('name')"
+          placeholder="Enter your name"
+        >
+        <div *ngIf="isFieldInvalid('name')" class="error-message">
+          <span *ngIf="registerForm.get('name')?.errors?.['required']">Name is required</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          formControlName="email"
+          [class.error]="isFieldInvalid('email')"
+          placeholder="Enter your email"
+        >
+        <div *ngIf="isFieldInvalid('email')" class="error-message">
+          <span *ngIf="registerForm.get('email')?.errors?.['required']">Email is required</span>
+          <span *ngIf="registerForm.get('email')?.errors?.['email']">Please enter a valid email</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          formControlName="password"
+          [class.error]="isFieldInvalid('password')"
+          placeholder="Enter your password"
+        >
+        <div *ngIf="isFieldInvalid('password')" class="error-message">
+          <span *ngIf="registerForm.get('password')?.errors?.['required']">Password is required</span>
+          <span *ngIf="registerForm.get('password')?.errors?.['minlength']">Password must be at least 6 characters</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="number">Number (optional)</label>
+        <input 
+          type="text" 
+          id="number" 
+          formControlName="number"
+          placeholder="Enter your number (optional)"
+        >
+      </div>
+      <div *ngIf="errorMessage" class="error-message general-error">
+        {{ errorMessage }}
+      </div>
+      <button type="submit" [disabled]="registerForm.invalid || loading" class="auth-button">
+        <span *ngIf="loading" class="spinner"></span>
+        {{ loading ? 'Registering...' : 'Register' }}
+      </button>
+    </form>
+    <div class="auth-footer">
+      <p>Already have an account? <a routerLink="/login">Sign in</a></p>
+    </div>
+  </div>
+</div>
