@@ -47,7 +47,7 @@
       </form>
   
       <div class="auth-footer">
-        <p>Don't have an account? <a routerLink="/register">Sign up</a></p>
+        <p>Don't have an account? <a href="#" (click)="goToRegister(); $event.preventDefault()">Sign up</a></p>
       </div>
   
       <div class="demo-credentials">

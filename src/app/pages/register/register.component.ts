@@ -4,45 +4,37 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router, RouterModule } from '@angular/router';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-register',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.css']
+  templateUrl: './register.component.html',
+  styleUrls: ['./register.component.css']
 })
-export class LoginComponent {
-  loginForm: FormGroup;
+export class RegisterComponent {
+  registerForm: FormGroup;
   loading = false;
   errorMessage = '';
 
   constructor(private fb: FormBuilder, private router: Router) {
-    this.loginForm = this.fb.group({
+    this.registerForm = this.fb.group({
+      name: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      number: [''] // Optional
     });
   }
 
   onSubmit(): void {
-    if (this.loginForm.valid) {
+    if (this.registerForm.valid) {
       this.loading = true;
       this.errorMessage = '';
-      const { email, password } = this.loginForm.value;
-      // Demo credentials
-      if (email === 'demo@example.com' && password === 'password') {
-        this.router.navigate(['/dashboard']);
-      } else {
-        this.errorMessage = 'Invalid email or password.';
-      }
+      // Registration logic goes here
       this.loading = false;
     }
   }
 
   isFieldInvalid(fieldName: string): boolean {
-    const field = this.loginForm.get(fieldName);
+    const field = this.registerForm.get(fieldName);
     return field ? field.invalid && (field.dirty || field.touched) : false;
-  }
-
-  goToRegister(): void {
-    this.router.navigate(['/register']);
   }
 }
