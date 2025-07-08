@@ -6,7 +6,7 @@ import { provideClientHydration, withEventReplay } from '@angular/platform-brows
 
 // app.config.ts or app.module.ts
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { TokenInterceptor } from './interceptors/token.interceptor';
+import { tokenInterceptor } from './interceptors/token-interceptor';
 
 
 export const appConfig: ApplicationConfig = {
@@ -14,7 +14,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes), provideClientHydration(withEventReplay()),
-    provideHttpClient(withInterceptors([TokenInterceptor])),
+    provideHttpClient(withInterceptors([tokenInterceptor])),
     provideHttpClient()
   ]
   
