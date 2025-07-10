@@ -9,7 +9,7 @@ import { LocalContentService } from '../../services/local-content.service';
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule],
-  template: `
+  template: '
     <div class="dashboard-container">
       <header class="dashboard-header">
         <div class="header-content">
@@ -93,8 +93,8 @@ import { LocalContentService } from '../../services/local-content.service';
         </main>
       </div>
     </div>
-  `,
-  styles: [`
+  ',
+  styles: ['
     .dashboard-container {
       min-height: 100vh;
       background: #2a3441;
@@ -422,7 +422,7 @@ import { LocalContentService } from '../../services/local-content.service';
       color: #b0c4de;
       font-size: 0.95rem;
     }
-  `]
+  ']
 })
 export class DashboardComponent implements OnInit {
   user: User | null = null;
