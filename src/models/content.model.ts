@@ -4,6 +4,8 @@ export interface FileItem {
   name: string;
   type: 'png' | 'json' | 'xml';
   content: string; // base64 for png, string for json/xml
+  addedBy: string;
+  timestamp: string;
 }
 
 export interface Folder {

@@ -6,6 +6,7 @@ import { User } from '../../models/user.model';
 import { LocalContentService } from '../../services/local-content.service';
 import { Repository, Folder, FileItem } from '../../models/content.model';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-dashboard',
@@ -94,49 +95,73 @@ import { FormsModule } from '@angular/forms';
         </aside>
 
         <main class="dashboard-main">
-          <div class="welcome-section">
-            <h2>Welcome back, {{ user?.name }}!</h2>
-            <p>You have successfully logged in to your account.</p>
-          </div>
-          <div *ngIf="selectedFiles.length > 0" class="files-section">
-            <h3>Files</h3>
-            <ul class="selected-files-list">
-              <li *ngFor="let file of selectedFiles">
-                <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                <span class="file-name">{{ file.name }}</span>
-                <span class="file-type">({{ file.type }})</span>
-              </li>
-            </ul>
-          </div>
-          <div class="dashboard-grid" *ngIf="selectedFiles.length === 0">
-            <div class="dashboard-card">
-              <div class="card-icon">👤</div>
-              <h3>Profile</h3>
-              <p>Manage your account settings and personal information</p>
-              <button class="card-button" (click)="goToProfile()">View Profile</button>
+          <div *ngIf="selectedFolder" class="dropzone-wrapper">
+            <div class="dropzone-card"
+                 (dragover)="onDragOver($event)"
+                 (dragleave)="onDragLeave($event)"
+                 (drop)="onFileDrop($event)"
+                 [class.dragover]="isDragOver">
+              <div class="plus-sign">+</div>
+              <div class="dropzone-text">Drag & drop a file here to add to '{{selectedFolder.name}}'</div>
             </div>
-
-            <div class="dashboard-card">
-              <div class="card-icon">📊</div>
-              <h3>Analytics</h3>
-              <p>View your activity and usage statistics</p>
-              <button class="card-button">View Analytics</button>
-            </div>
-
-            <div class="dashboard-card">
-              <div class="card-icon">⚙️</div>
-              <h3>Settings</h3>
-              <p>Configure your preferences and account settings</p>
-              <button class="card-button">Open Settings</button>
-            </div>
-
-            <div class="dashboard-card">
-              <div class="card-icon">💬</div>
-              <h3>Support</h3>
-              <p>Get help and contact our support team</p>
-              <button class="card-button">Contact Support</button>
+            <div *ngIf="selectedFolder.files.length > 0" class="folder-files-list">
+              <h3>Files in '{{selectedFolder.name}}'</h3>
+              <ul>
+                <li *ngFor="let file of selectedFolder.files">
+                  <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                  <span class="file-name">{{ file.name }}</span>
+                  <span class="file-type">({{ file.type }})</span>
+                  <span class="file-meta">Added by: {{ file.addedBy }} at {{ file.timestamp | date:'short' }}</span>
+                  <button (click)="deleteFile(file, $event)">Delete</button>
+                </li>
+              </ul>
             </div>
           </div>
+          <ng-container *ngIf="!selectedFolder">
+            <div class="welcome-section">
+              <h2>Welcome back, {{ user?.name }}!</h2>
+              <p>You have successfully logged in to your account.</p>
+            </div>
+            <div *ngIf="selectedFiles.length > 0" class="files-section">
+              <h3>Files</h3>
+              <ul class="selected-files-list">
+                <li *ngFor="let file of selectedFiles">
+                  <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                  <span class="file-name">{{ file.name }}</span>
+                  <span class="file-type">({{ file.type }})</span>
+                </li>
+              </ul>
+            </div>
+            <div class="dashboard-grid" *ngIf="selectedFiles.length === 0">
+              <div class="dashboard-card">
+                <div class="card-icon">👤</div>
+                <h3>Profile</h3>
+                <p>Manage your account settings and personal information</p>
+                <button class="card-button" (click)="goToProfile()">View Profile</button>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="card-icon">📊</div>
+                <h3>Analytics</h3>
+                <p>View your activity and usage statistics</p>
+                <button class="card-button">View Analytics</button>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="card-icon">⚙️</div>
+                <h3>Settings</h3>
+                <p>Configure your preferences and account settings</p>
+                <button class="card-button">Open Settings</button>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="card-icon">💬</div>
+                <h3>Support</h3>
+                <p>Get help and contact our support team</p>
+                <button class="card-button">Contact Support</button>
+              </div>
+            </div>
+          </ng-container>
         </main>
       </div>
     </div>
@@ -594,6 +619,94 @@ import { FormsModule } from '@angular/forms';
       font-size: 0.9rem;
       padding: 0.25rem 0.75rem;
     }
+    .dropzone-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 60vh;
+      padding-top: 3rem;
+    }
+    .dropzone-card {
+      width: 340px;
+      height: 220px;
+      background: #22304a;
+      border: 2px dashed #F87060;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    .dropzone-card.dragover {
+      border-color: #1abc9c;
+      background: #2a3441;
+    }
+    .plus-sign {
+      font-size: 4rem;
+      color: #F87060;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .dropzone-text {
+      color: #fff;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    .folder-files-list {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      background: #3a4651;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .folder-files-list ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .folder-files-list li {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+    .file-meta {
+      color: #b0c4de;
+      font-size: 0.95rem;
+      margin-left: 1rem;
+    }
+    .file-icon {
+      font-size: 1.5rem;
+    }
+    .file-name {
+      font-weight: 500;
+    }
+    .file-type {
+      color: #b0c4de;
+      font-size: 0.95rem;
+    }
+    .folder-files-list button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background-color 0.2s ease;
+    }
+    .folder-files-list button:hover {
+      background: #c0392b;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -617,11 +730,13 @@ export class DashboardComponent implements OnInit {
 
   repoOptionsRepo: Repository | null = null;
   folderOptionsFolder: Folder | null = null;
+  isDragOver = false;
 
   constructor(
     private authService: AuthService,
     private router: Router,
-    private contentService: LocalContentService
+    private contentService: LocalContentService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -753,7 +868,9 @@ export class DashboardComponent implements OnInit {
       id: this.generateId(),
       name: this.newFileName.trim(),
       type: this.newFileType,
-      content
+      content,
+      addedBy: this.user?.name || this.user?.email || 'Unknown',
+      timestamp: new Date().toISOString()
     };
     this.contentService.addFile(this.selectedRepo.id, this.selectedFolder.id, file);
     this.newFileName = '';
@@ -777,6 +894,56 @@ export class DashboardComponent implements OnInit {
     if (!this.selectedRepo || !this.selectedFolder) return;
     this.contentService.deleteFile(this.selectedRepo.id, this.selectedFolder.id, file.id);
     this.loadRepositories();
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = true;
+  }
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = false;
+  }
+  onFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver = false;
+    if (!event.dataTransfer || !event.dataTransfer.files.length || !this.selectedRepo || !this.selectedFolder) return;
+    const file = event.dataTransfer.files[0];
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    let type: 'png' | 'json' | 'xml' = 'json';
+    if (ext === 'png') type = 'png';
+    else if (ext === 'xml') type = 'xml';
+    else if (ext === 'json') type = 'json';
+    const addedBy = this.user?.name || this.user?.email || 'Unknown';
+    const timestamp = new Date().toISOString();
+    reader.onload = (e: any) => {
+      let content = '';
+      if (type === 'png') {
+        // Remove data URL prefix
+        content = e.target.result.split(',')[1];
+      } else {
+        content = e.target.result;
+      }
+      const fileItem: FileItem = {
+        id: this.generateId(),
+        name: file.name,
+        type,
+        content,
+        addedBy,
+        timestamp
+      } as any;
+      this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
+      this.loadRepositories();
+      // Optionally re-select the folder to update UI
+      const repo = this.repositories.find(r => r.id === this.selectedRepo!.id);
+      this.selectedFolder = repo?.folders.find(f => f.id === this.selectedFolder!.id) || null;
+    };
+    if (type === 'png') {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
   }
 
   // Utility
