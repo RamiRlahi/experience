@@ -4,11 +4,13 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../models/user.model';
 import { LocalContentService } from '../../services/local-content.service';
+import { Repository, Folder, FileItem } from '../../models/content.model';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="dashboard-container">
       <header class="dashboard-header">
@@ -27,21 +29,66 @@ import { LocalContentService } from '../../services/local-content.service';
       <div class="dashboard-body">
         <aside class="sidebar">
           <h2>Repositories</h2>
+          <form (ngSubmit)="addRepository()" class="repo-form">
+            <input [(ngModel)]="newRepoName" name="repoName" placeholder="New repository name" required />
+            <button type="submit">Add Repo</button>
+          </form>
           <ul class="repo-list">
             <li *ngFor="let repo of repositories">
               <div class="repo-name" (click)="selectRepo(repo)">
-                <span [class.expanded]="repo.expanded">&#9654;</span> {{ repo.name }}
+                <span [class.expanded]="repo === selectedRepo">&#9654;</span> {{ repo.name }}
+                <button class="more-btn" (click)="toggleRepoOptions(repo, $event)">...</button>
+                <div *ngIf="repo === repoOptionsRepo" class="repo-options">
+                  <button (click)="startRenameRepo(repo, $event)">Rename</button>
+                  <button (click)="deleteRepository(repo, $event)">Delete</button>
+                </div>
               </div>
-              <ul class="folder-list" *ngIf="repo.expanded">
-                <li *ngFor="let folder of repo.folders">
-                  <div class="folder-name" (click)="selectFolder(folder)">{{ folder.name }}</div>
-                  <ul class="file-list" *ngIf="folder.expanded">
-                    <li *ngFor="let file of folder.files">
-                      {{ file.name }}
-                    </li>
-                  </ul>
-                </li>
-              </ul>
+              <div *ngIf="repo === renamingRepo">
+                <input [(ngModel)]="renameRepoName" name="renameRepoName" />
+                <button (click)="confirmRenameRepo(repo)">Save</button>
+                <button (click)="cancelRenameRepo()">Cancel</button>
+              </div>
+              <div *ngIf="repo === selectedRepo">
+                <form (ngSubmit)="addFolder()" class="folder-form child-form">
+                  <input [(ngModel)]="newFolderName" name="folderName" placeholder="New folder name" required />
+                  <button type="submit">Add Folder</button>
+                </form>
+                <ul class="folder-list">
+                  <li *ngFor="let folder of repo.folders">
+                    <div class="folder-name" (click)="selectFolder(folder)">{{ folder.name }}
+                      <button class="more-btn" (click)="toggleFolderOptions(folder, $event)">...</button>
+                      <div *ngIf="folder === folderOptionsFolder" class="folder-options">
+                        <button (click)="startRenameFolder(folder, $event)">Rename</button>
+                        <button (click)="deleteFolder(folder, $event)">Delete</button>
+                      </div>
+                    </div>
+                    <div *ngIf="folder === renamingFolder">
+                      <input [(ngModel)]="renameFolderName" name="renameFolderName" />
+                      <button (click)="confirmRenameFolder(folder)">Save</button>
+                      <button (click)="cancelRenameFolder()">Cancel</button>
+                    </div>
+                    <div *ngIf="folder === selectedFolder">
+                      <form (ngSubmit)="addFile()" class="file-form">
+                        <input [(ngModel)]="newFileName" name="fileName" placeholder="File name" required />
+                        <select [(ngModel)]="newFileType" name="fileType" required>
+                          <option value="png">PNG</option>
+                          <option value="json">JSON</option>
+                          <option value="xml">XML</option>
+                        </select>
+                        <input *ngIf="newFileType === 'png'" type="file" (change)="onFileSelected($event)" />
+                        <textarea *ngIf="newFileType !== 'png'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
+                        <button type="submit">Add File</button>
+                      </form>
+                      <ul class="file-list">
+                        <li *ngFor="let file of folder.files">
+                          {{ file.name }} ({{ file.type }})
+                          <button (click)="deleteFile(file, $event)">Delete</button>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+                </ul>
+              </div>
             </li>
           </ul>
         </aside>
@@ -109,7 +156,7 @@ import { LocalContentService } from '../../services/local-content.service';
       position: relative;
     }
     .sidebar {
-      width: 32px;
+      width: 48px; /* collapsed width */
       background: #22304a;
       color: #fff;
       border-radius: 0 12px 12px 0;
@@ -127,7 +174,7 @@ import { LocalContentService } from '../../services/local-content.service';
       cursor: pointer;
     }
     .sidebar:hover {
-      width: 260px;
+      width: 360px; /* expanded width */
       padding: 1.5rem 1rem;
       cursor: default;
     }
@@ -257,12 +304,12 @@ import { LocalContentService } from '../../services/local-content.service';
     }
 
     .dashboard-main {
-      margin-left: 32px;
+      margin-left: 48px; /* match collapsed width */
       width: 100%;
       transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
     }
     .sidebar:hover ~ .dashboard-main {
-      margin-left: 260px;
+      margin-left: 360px; /* match expanded width */
     }
 
     .welcome-section {
@@ -422,69 +469,320 @@ import { LocalContentService } from '../../services/local-content.service';
       color: #b0c4de;
       font-size: 0.95rem;
     }
+    .repo-form, .folder-form, .file-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .repo-form input, .folder-form input, .file-form input, .repo-form select, .folder-form select {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      background: #3a4651;
+      color: white;
+      font-size: 0.95rem;
+    }
+    .repo-form button, .folder-form button, .file-form button {
+      background: #102542;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+    }
+    .repo-form button:hover, .folder-form button:hover, .file-form button:hover {
+      background: #1a367b;
+    }
+    .repo-name button, .folder-name button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background-color 0.2s ease;
+    }
+    .repo-name button:hover, .folder-name button:hover {
+      background: #c0392b;
+    }
+    .repo-name, .folder-name {
+      position: relative;
+    }
+    .more-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1.2rem;
+      margin-left: 0.5rem;
+      cursor: pointer;
+      padding: 0 0.25rem;
+      box-shadow: none;
+      outline: none;
+      z-index: 20;
+      position: relative;
+    }
+    .more-btn:hover, .more-btn:focus {
+      color: #F87060;
+      background: transparent;
+      outline: none;
+      box-shadow: none;
+    }
+    .repo-options, .folder-options {
+      display: flex;
+      flex-direction: column;
+      background: #34405a;
+      border-radius: 6px;
+      position: absolute;
+      z-index: 30;
+      left: 0;
+      top: 2.1rem;
+      min-width: 120px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      padding: 0.25rem 0;
+      animation: dropdown-fade-in 0.18s;
+    }
+    .repo-options::before, .folder-options::before {
+      content: '';
+      display: block;
+      position: absolute;
+      top: -8px;
+      left: 18px;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 8px solid #34405a;
+      z-index: 31;
+    }
+    .repo-options button, .folder-options button {
+      background: none;
+      border: none;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      font-size: 0.98rem;
+      transition: background 0.15s;
+    }
+    .repo-options button:hover, .folder-options button:hover {
+      background: #22304a;
+    }
+    @keyframes dropdown-fade-in {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .child-form {
+      margin-left: 1.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .child-form input {
+      width: 120px;
+      font-size: 0.9rem;
+      padding: 0.25rem 0.5rem;
+    }
+    .child-form button {
+      font-size: 0.9rem;
+      padding: 0.25rem 0.75rem;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
   user: User | null = null;
+  repositories: Repository[] = [];
+  selectedRepo: Repository | null = null;
+  selectedFolder: Folder | null = null;
+  selectedFiles: FileItem[] = [];
 
-  repositories = [
-    {
-      name: 'repo 1',
-      folders: [
-        { name: '1', files: [
-          { name: 'fileA.txt', type: 'text' },
-          { name: 'fileB.js', type: 'js' }
-        ], expanded: false },
-        { name: '2', files: [
-          { name: 'fileC.png', type: 'image' },
-          { name: 'fileD.md', type: 'markdown' }
-        ], expanded: false },
-        { name: '3', files: [
-          { name: 'fileE.pdf', type: 'pdf' },
-          { name: 'fileF.docx', type: 'doc' }
-        ], expanded: false }
-      ],
-      expanded: false
-    },
-    {
-      name: 'repo 2',
-      folders: [
-        { name: '4', files: [
-          { name: 'fileG.txt', type: 'text' },
-          { name: 'fileH.js', type: 'js' }
-        ], expanded: false },
-        { name: '5', files: [
-          { name: 'fileI.png', type: 'image' },
-          { name: 'fileJ.md', type: 'markdown' }
-        ], expanded: false },
-        { name: '6', files: [
-          { name: 'fileK.pdf', type: 'pdf' },
-          { name: 'fileL.docx', type: 'doc' }
-        ], expanded: false }
-      ],
-      expanded: false
-    },
-    {
-      name: 'repo 3',
-      folders: [
-        { name: '7', files: [
-          { name: 'fileM.txt', type: 'text' },
-          { name: 'fileN.js', type: 'js' }
-        ], expanded: false },
-        { name: '8', files: [
-          { name: 'fileO.png', type: 'image' },
-          { name: 'fileP.md', type: 'markdown' }
-        ], expanded: false },
-        { name: '9', files: [
-          { name: 'fileQ.pdf', type: 'pdf' },
-          { name: 'fileR.docx', type: 'doc' }
-        ], expanded: false }
-      ],
-      expanded: false
+  // UI state
+  newRepoName = '';
+  renamingRepo: Repository | null = null;
+  renameRepoName = '';
+  newFolderName = '';
+  renamingFolder: Folder | null = null;
+  renameFolderName = '';
+  newFileName = '';
+  newFileType: 'png' | 'json' | 'xml' = 'json';
+  newFileContent = '';
+  newFileBase64 = '';
+
+  repoOptionsRepo: Repository | null = null;
+  folderOptionsFolder: Folder | null = null;
+
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private contentService: LocalContentService
+  ) {}
+
+  ngOnInit(): void {
+    this.user = this.authService.getCurrentUser();
+    this.loadRepositories();
+    document.addEventListener('click', this.handleClickOutside.bind(this));
+  }
+  ngOnDestroy(): void {
+    document.removeEventListener('click', this.handleClickOutside.bind(this));
+  }
+  handleClickOutside(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.repo-options') && !target.closest('.more-btn')) {
+      this.repoOptionsRepo = null;
     }
-  ];
+    if (!target.closest('.folder-options') && !target.closest('.more-btn')) {
+      this.folderOptionsFolder = null;
+    }
+  }
 
-  selectedFiles: Array<{ name: string, type: string }> = [];
+  loadRepositories(): void {
+    this.repositories = this.contentService.getRepositories();
+    if (this.selectedRepo) {
+      this.selectedRepo = this.repositories.find(r => r.id === this.selectedRepo!.id) || null;
+    }
+    if (this.selectedFolder && this.selectedRepo) {
+      this.selectedFolder = this.selectedRepo.folders.find(f => f.id === this.selectedFolder!.id) || null;
+      this.selectedFiles = this.selectedFolder?.files || [];
+    }
+  }
+
+  // Repository methods
+  addRepository(): void {
+    if (!this.newRepoName.trim()) return;
+    this.contentService.addRepository(this.newRepoName.trim());
+    this.newRepoName = '';
+    this.loadRepositories();
+  }
+  selectRepo(repo: Repository): void {
+    this.selectedRepo = repo;
+    this.selectedFolder = null;
+    this.selectedFiles = [];
+  }
+  startRenameRepo(repo: Repository, event: Event): void {
+    event.stopPropagation();
+    this.renamingRepo = repo;
+    this.renameRepoName = repo.name;
+  }
+  confirmRenameRepo(repo: Repository): void {
+    if (!this.renameRepoName.trim()) return;
+    this.contentService.renameRepository(repo.id, this.renameRepoName.trim());
+    this.renamingRepo = null;
+    this.renameRepoName = '';
+    this.loadRepositories();
+  }
+  cancelRenameRepo(): void {
+    this.renamingRepo = null;
+    this.renameRepoName = '';
+  }
+  deleteRepository(repo: Repository, event: Event): void {
+    event.stopPropagation();
+    this.contentService.deleteRepository(repo.id);
+    if (this.selectedRepo?.id === repo.id) {
+      this.selectedRepo = null;
+      this.selectedFolder = null;
+      this.selectedFiles = [];
+    }
+    this.loadRepositories();
+  }
+
+  toggleRepoOptions(repo: Repository, event: Event): void {
+    event.stopPropagation();
+    this.repoOptionsRepo = this.repoOptionsRepo === repo ? null : repo;
+    this.folderOptionsFolder = null;
+  }
+
+  // Folder methods
+  addFolder(): void {
+    if (!this.selectedRepo || !this.newFolderName.trim()) return;
+    this.contentService.addFolder(this.selectedRepo.id, this.newFolderName.trim());
+    this.newFolderName = '';
+    this.loadRepositories();
+  }
+  selectFolder(folder: Folder): void {
+    this.selectedFolder = folder;
+    this.selectedFiles = folder.files;
+  }
+  startRenameFolder(folder: Folder, event: Event): void {
+    event.stopPropagation();
+    this.renamingFolder = folder;
+    this.renameFolderName = folder.name;
+  }
+  confirmRenameFolder(folder: Folder): void {
+    if (!this.selectedRepo || !this.renameFolderName.trim()) return;
+    this.contentService.renameFolder(this.selectedRepo.id, folder.id, this.renameFolderName.trim());
+    this.renamingFolder = null;
+    this.renameFolderName = '';
+    this.loadRepositories();
+  }
+  cancelRenameFolder(): void {
+    this.renamingFolder = null;
+    this.renameFolderName = '';
+  }
+  deleteFolder(folder: Folder, event: Event): void {
+    event.stopPropagation();
+    if (!this.selectedRepo) return;
+    this.contentService.deleteFolder(this.selectedRepo.id, folder.id);
+    if (this.selectedFolder?.id === folder.id) {
+      this.selectedFolder = null;
+      this.selectedFiles = [];
+    }
+    this.loadRepositories();
+  }
+
+  toggleFolderOptions(folder: Folder, event: Event): void {
+    event.stopPropagation();
+    this.folderOptionsFolder = this.folderOptionsFolder === folder ? null : folder;
+    this.repoOptionsRepo = null;
+  }
+
+  // File methods
+  addFile(): void {
+    if (!this.selectedRepo || !this.selectedFolder || !this.newFileName.trim()) return;
+    let content = this.newFileContent;
+    if (this.newFileType === 'png') {
+      content = this.newFileBase64;
+    }
+    const file: FileItem = {
+      id: this.generateId(),
+      name: this.newFileName.trim(),
+      type: this.newFileType,
+      content
+    };
+    this.contentService.addFile(this.selectedRepo.id, this.selectedFolder.id, file);
+    this.newFileName = '';
+    this.newFileType = 'json';
+    this.newFileContent = '';
+    this.newFileBase64 = '';
+    this.loadRepositories();
+  }
+  onFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.newFileBase64 = e.target.result.split(',')[1]; // base64 only
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+  deleteFile(file: FileItem, event: Event): void {
+    event.stopPropagation();
+    if (!this.selectedRepo || !this.selectedFolder) return;
+    this.contentService.deleteFile(this.selectedRepo.id, this.selectedFolder.id, file.id);
+    this.loadRepositories();
+  }
+
+  // Utility
+  generateId(): string {
+    return Math.random().toString(36).substr(2, 9);
+  }
 
   fileTypeIcon(type: string): string {
     switch(type) {
@@ -496,51 +794,6 @@ export class DashboardComponent implements OnInit {
       case 'doc': return '📄';
       default: return '📁';
     }
-  }
-
-  selectRepo(repo: any): void {
-    this.selectedFiles = [];
-    repo.expanded = !repo.expanded;
-    if (repo.expanded) {
-      // Show all files in all folders of this repo
-      this.selectedFiles = repo.folders.flatMap((folder: any) => folder.files);
-    }
-  }
-
-  selectFolder(folder: any): void {
-    this.selectedFiles = [];
-    folder.expanded = !folder.expanded;
-    if (folder.expanded) {
-      this.selectedFiles = folder.files;
-    }
-  }
-
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-    private contentService: LocalContentService
-  ) {}
-
-  ngOnInit(): void {
-    this.user = this.authService.getCurrentUser();
-    // Example: Load all content items
-    // this.contentItems = this.contentService.getAll();
-  }
-
-  // Example methods for content CRUD
-  addContentItem(item: { id: string, name: string, type: string }) {
-    this.contentService.add(item);
-    // Optionally reload contentItems
-  }
-
-  updateContentItem(id: string, newItem: { id: string, name: string, type: string }) {
-    this.contentService.update(id, newItem);
-    // Optionally reload contentItems
-  }
-
-  deleteContentItem(id: string) {
-    this.contentService.delete(id);
-    // Optionally reload contentItems
   }
 
   logout(): void {
