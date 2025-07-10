@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, BehaviorSubject, of } from 'rxjs';
 import { User, LoginRequest, RegisterRequest, AuthResponse, ApiResponse } from '../models/user.model';
+import { Repository, Folder, FileItem } from '../models/content.model';
 
 @Injectable({
   providedIn: 'root'
