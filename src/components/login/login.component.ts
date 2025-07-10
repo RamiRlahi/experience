@@ -280,8 +280,11 @@ export class LoginComponent {
         next: (response) => {
           this.loading = false;
           if (response.success) {
-            this.authService.handleAuthSuccess(response.data);
+            const token = this.authService.getAuthToken();
+            console.log('Auth Token:', token);
             this.router.navigate(['/dashboard']);
+          } else {
+            this.errorMessage = response.message || 'Login failed. Please try again.';
           }
         },
         error: (error) => {

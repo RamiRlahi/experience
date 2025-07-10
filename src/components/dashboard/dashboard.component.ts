@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../models/user.model';
+import { LocalContentService } from '../../services/local-content.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -516,14 +517,30 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private contentService: LocalContentService
   ) {}
 
   ngOnInit(): void {
     this.user = this.authService.getCurrentUser();
-    if (this.user) {
-      this.user.name = 'demo';
-    }
+    // Example: Load all content items
+    // this.contentItems = this.contentService.getAll();
+  }
+
+  // Example methods for content CRUD
+  addContentItem(item: { id: string, name: string, type: string }) {
+    this.contentService.add(item);
+    // Optionally reload contentItems
+  }
+
+  updateContentItem(id: string, newItem: { id: string, name: string, type: string }) {
+    this.contentService.update(id, newItem);
+    // Optionally reload contentItems
+  }
+
+  deleteContentItem(id: string) {
+    this.contentService.delete(id);
+    // Optionally reload contentItems
   }
 
   logout(): void {

@@ -286,8 +286,9 @@ export class RegisterComponent {
         next: (response) => {
           this.loading = false;
           if (response.success) {
-            this.authService.handleAuthSuccess(response.data);
             this.router.navigate(['/dashboard']);
+          } else {
+            this.errorMessage = response.message || 'Registration failed. Please try again.';
           }
         },
         error: (error) => {
