@@ -140,8 +140,8 @@ import { FormsModule } from '@angular/forms';
         </main>
       </div>
     </div>
-  ',
-  styles: ['
+  `,
+  styles: [`
     .dashboard-container {
       min-height: 100vh;
       background: #2a3441;
