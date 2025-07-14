@@ -157,15 +157,15 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   <button (click)="deleteFile(file, $event)">Delete</button>
                 </div>
               </div>
-              <div *ngIf="previewModalFile" class="preview-modal" (click)="previewModalFile = null">
+              <div *ngIf="previewModalFile" class="preview-modal" (click)="closePreviewModal()">
                 <div class="preview-modal-content" (click)="$event.stopPropagation()">
-                  <button class="close-btn" (click)="previewModalFile = null">&times;</button>
+                  <button class="close-btn" (click)="closePreviewModal()">&times;</button>
                   <ng-container [ngSwitch]="previewModalFile.type">
                     <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
                     <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
                     <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
                     <embed *ngSwitchCase="'pdf'" [src]="getSafePdfUrl(previewModalFile.content)" type="application/pdf" style="width:80vw; height:60vh; border-radius:8px; background:#fff;" />
-                    <video *ngSwitchCase="'mp4'" controls [src]="getSafeMp4Url(previewModalFile.content)" style="max-width: 100%; max-height: 70vh;"></video>
+                    <video *ngSwitchCase="'mp4'" controls [src]="'data:video/mp4;base64,' + previewModalFile.content" style="max-width: 100%; max-height: 70vh;"></video>
                     <pre *ngSwitchCase="'txt'">{{ previewModalFile.content }}</pre>
                     <pre *ngSwitchCase="'json'">{{ formatJson(previewModalFile.content) }}</pre>
                     <pre *ngSwitchCase="'xml'">{{ formatXml(previewModalFile.content) }}</pre>
@@ -1663,9 +1663,17 @@ export class DashboardComponent implements OnInit {
       return this.sanitizer.bypassSecurityTrustResourceUrl(url);
     } catch (e) {
       // Return a blank PDF as a SafeResourceUrl, not an empty string
-      const blank = 'data:application/pdf;base64,';
+      const blank = 'data:video/mp4;base64,';
       return this.sanitizer.bypassSecurityTrustResourceUrl(blank);
     }
+  }
+
+  openPreviewModal(file: FileItem) {
+    this.previewModalFile = file;
+  }
+
+  closePreviewModal(): void {
+    this.previewModalFile = null;
   }
 
   // Utility to get all folders across all repos
