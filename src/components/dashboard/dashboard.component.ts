@@ -29,7 +29,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
       <div class="dashboard-body">
         <aside class="sidebar">
-        <button (click)="goToDashboard" class="card-button">Home</button>
+        <button (click)="goToDashboard()" class="card-button">Home</button>
         <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="card-button">Shared with me</button>
           <h2>Repositories</h2>
           <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="add-btn">Add Repo</button>
@@ -184,7 +184,10 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let file of getRecentFiles()">
+                  <tr *ngFor="let file of getRecentFiles()"
+                      (mouseenter)="showFilePreview(file, $event)"
+                      (mousemove)="moveFilePreview($event)"
+                      (mouseleave)="hideFilePreview()">
                     <td>
                       <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
                       <span class="file-name">{{ file.name }}</span>
@@ -196,6 +199,19 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <!-- Floating file preview -->
+            <div *ngIf="hoveredFile" class="file-hover-preview" [style.left.px]="hoverX" [style.top.px]="hoverY">
+              <ng-container [ngSwitch]="hoveredFile.type">
+                <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
+                <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
+                <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
+                <video *ngSwitchCase="'mp4'" [src]="'data:video/mp4;base64,' + hoveredFile.content" muted autoplay loop style="max-width:120px;max-height:80px;border-radius:6px;"></video>
+                <div *ngSwitchCase="'pdf'" class="hover-pdf-icon">📕<div>{{ hoveredFile.name }}</div></div>
+                <pre *ngSwitchCase="'txt'">{{ hoveredFile.content | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
+                <pre *ngSwitchCase="'json'">{{ formatJson(hoveredFile.content) | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
+                <pre *ngSwitchCase="'xml'">{{ hoveredFile.content | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
+              </ng-container>
             </div>
             <!-- Floating add button -->
             <button
@@ -214,6 +230,15 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             <div *ngIf="showAddMenu" class="fab-menu" (clickOutside)="closeAddMenu()">
               <button (click)="openAddRepo()">Add Repo</button>
               <button (click)="openAddFolder()">Add Folder</button>
+            </div>
+            <!-- Add Repo Modal -->
+            <div *ngIf="showAddRepoModal" class="modal-overlay" (click)="closeAddRepoModal()">
+              <div class="modal-content" (click)="$event.stopPropagation()">
+                <h3>Add Repository</h3>
+                <input [(ngModel)]="newRepoName" placeholder="Repository name" />
+                <button (click)="addRepoFromModal()">Add</button>
+                <button (click)="closeAddRepoModal()">Cancel</button>
+              </div>
             </div>
             <!-- Add Folder Modal -->
             <div *ngIf="showAddFolderModal" class="modal-overlay" (click)="closeAddFolderModal()">
@@ -1187,6 +1212,47 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       background: #F87060;
       color: #fff;
     }
+    .file-hover-preview {
+      position: fixed;
+      z-index: 2000;
+      pointer-events: none;
+      background: #22304a;
+      color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      padding: 0.7rem 1rem;
+      min-width: 120px;
+      max-width: 260px;
+      max-height: 160px;
+      overflow: hidden;
+      font-size: 0.98rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: opacity 0.12s;
+    }
+    .file-hover-preview img, .file-hover-preview video {
+      max-width: 120px;
+      max-height: 80px;
+      border-radius: 6px;
+      margin-bottom: 0.3rem;
+    }
+    .file-hover-preview pre {
+      background: none;
+      color: #fff;
+      font-size: 0.95rem;
+      margin: 0;
+      padding: 0;
+      max-width: 220px;
+      max-height: 80px;
+      overflow: hidden;
+      white-space: pre-wrap;
+    }
+    .hover-pdf-icon {
+      font-size: 2.2rem;
+      text-align: center;
+      margin-bottom: 0.2rem;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -1227,6 +1293,7 @@ export class DashboardComponent implements OnInit {
   showFileFormFolderId: string | null = null;
   // New state for floating button and add folder modal
   showAddMenu = false;
+  showAddRepoModal = false;
   showAddFolderModal = false;
   addFolderRepoId: string | null = null;
   addFolderMode: 'existing' | 'new' = 'existing';
@@ -1234,6 +1301,11 @@ export class DashboardComponent implements OnInit {
   fabPlusOffsetX = 0;
   fabPlusOffsetY = 0;
   fabBtnRef: HTMLElement | null = null;
+
+  // Hover preview state
+  hoveredFile: (FileItem & { folderName: string, repoName: string }) | null = null;
+  hoverX = 0;
+  hoverY = 0;
 
   constructor(
     private authService: AuthService,
@@ -1686,9 +1758,18 @@ export class DashboardComponent implements OnInit {
   // Floating button handlers
   openAddMenu(): void { this.showAddMenu = true; }
   closeAddMenu(): void { this.showAddMenu = false; }
-  openAddRepo(): void { this.showRepoForm = true; this.showAddMenu = false; }
+  openAddRepo(): void { this.showAddRepoModal = true; this.showAddMenu = false; }
+  closeAddRepoModal() { this.showAddRepoModal = false; this.newRepoName = ''; }
+  addRepoFromModal() {
+    if (this.newRepoName.trim()) {
+      this.contentService.addRepository(this.newRepoName.trim());
+      this.newRepoName = '';
+      this.closeAddRepoModal();
+      this.loadRepositories();
+    }
+  }
   openAddFolder(): void { this.showAddFolderModal = true; this.showAddMenu = false; }
-  closeAddFolderModal(): void { this.showAddFolderModal = false; this.addFolderRepoId = null; }
+  closeAddFolderModal() { this.showAddFolderModal = false; this.addFolderRepoId = null; }
   confirmAddFolder(): void {
     if (this.addFolderMode === 'existing') {
       if (this.addFolderRepoId && this.newFolderName.trim()) {
@@ -1736,5 +1817,18 @@ export class DashboardComponent implements OnInit {
   handleGlobalMouseLeave() {
     this.fabPlusOffsetX = 0;
     this.fabPlusOffsetY = 0;
+  }
+
+  showFilePreview(file: any, event: MouseEvent) {
+    this.hoveredFile = file;
+    this.hoverX = event.clientX + 16;
+    this.hoverY = event.clientY - 16;
+  }
+  moveFilePreview(event: MouseEvent) {
+    this.hoverX = event.clientX + 16;
+    this.hoverY = event.clientY - 16;
+  }
+  hideFilePreview() {
+    this.hoveredFile = null;
   }
 }
