@@ -30,9 +30,11 @@ import { DomSanitizer } from '@angular/platform-browser';
       <div class="dashboard-body">
         <aside class="sidebar">
           <h2>Repositories</h2>
-          <form (ngSubmit)="addRepository()" class="repo-form">
+          <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="add-btn">Add Repo</button>
+          <form *ngIf="showRepoForm" (ngSubmit)="addRepository()" class="repo-form">
             <input [(ngModel)]="newRepoName" name="repoName" placeholder="New repository name" required />
             <button type="submit">Add Repo</button>
+            <button type="button" (click)="showRepoForm = false">Cancel</button>
           </form>
           <ul class="repo-list">
             <li *ngFor="let repo of repositories">
@@ -40,6 +42,7 @@ import { DomSanitizer } from '@angular/platform-browser';
                 <span [class.expanded]="repo === selectedRepo">&#9654;</span> {{ repo.name }}
                 <button class="more-btn" (click)="toggleRepoOptions(repo, $event)">...</button>
                 <div *ngIf="repo === repoOptionsRepo" class="repo-options">
+                  <button (click)="showFolderFormRepoId = repo.id; repoOptionsRepo = null">Add Folder</button>
                   <button (click)="startRenameRepo(repo, $event)">Rename</button>
                   <button (click)="deleteRepository(repo, $event)">Delete</button>
                 </div>
@@ -50,15 +53,17 @@ import { DomSanitizer } from '@angular/platform-browser';
                 <button (click)="cancelRenameRepo()">Cancel</button>
               </div>
               <div *ngIf="repo === selectedRepo">
-                <form (ngSubmit)="addFolder()" class="folder-form child-form">
+                <form *ngIf="showFolderFormRepoId === repo.id" (ngSubmit)="addFolder()" class="folder-form child-form">
                   <input [(ngModel)]="newFolderName" name="folderName" placeholder="New folder name" required />
                   <button type="submit">Add Folder</button>
+                  <button type="button" (click)="showFolderFormRepoId = null">Cancel</button>
                 </form>
                 <ul class="folder-list">
                   <li *ngFor="let folder of repo.folders">
                     <div class="folder-name" (click)="selectFolder(folder)">{{ folder.name }}
                       <button class="more-btn" (click)="toggleFolderOptions(folder, $event)">...</button>
                       <div *ngIf="folder === folderOptionsFolder" class="folder-options">
+                        <button (click)="showFileFormFolderId = folder.id; folderOptionsFolder = null">Add File</button>
                         <button (click)="startRenameFolder(folder, $event)">Rename</button>
                         <button (click)="deleteFolder(folder, $event)">Delete</button>
                       </div>
@@ -69,16 +74,17 @@ import { DomSanitizer } from '@angular/platform-browser';
                       <button (click)="cancelRenameFolder()">Cancel</button>
                     </div>
                     <div *ngIf="folder === selectedFolder">
-                      <form (ngSubmit)="addFile()" class="file-form">
+                      <form *ngIf="showFileFormFolderId === folder.id" (ngSubmit)="addFile()" class="file-form">
                         <input [(ngModel)]="newFileName" name="fileName" placeholder="File name" required />
                         <select [(ngModel)]="newFileType" name="fileType" required>
                           <option value="png">PNG</option>
                           <option value="json">JSON</option>
                           <option value="xml">XML</option>
                         </select>
-                        <input *ngIf="newFileType === 'png'" type="file" (change)="onFileSelected($event)" />
-                        <textarea *ngIf="newFileType !== 'png'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
+                        <input *ngIf="newFileType === 'png' || newFileType === 'jpg' || newFileType === 'jpeg'" type="file" (change)="onFileSelected($event)" />
+                        <textarea *ngIf="newFileType !== 'png' && newFileType !== 'jpg' && newFileType !== 'jpeg'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
                         <button type="submit">Add File</button>
+                        <button type="button" (click)="showFileFormFolderId = null">Cancel</button>
                       </form>
                       <ul class="file-list">
                         <li *ngFor="let file of folder.files">
@@ -102,19 +108,39 @@ import { DomSanitizer } from '@angular/platform-browser';
                  (drop)="onFileDrop($event)"
                  [class.dragover]="isDragOver">
               <div class="plus-sign">+</div>
-              <div class="dropzone-text">Drag & drop a file here to add to '{{selectedFolder.name}}'</div>
+              <div *ngIf="showDropzoneText" class="dropzone-text">
+                Drag & drop a file here to add to '{{selectedFolder.name}}'
+              </div>
+            </div>
+            <div *ngIf="previewFile" class="file-preview-card">
+              <div *ngIf="previewFile.type === 'png'">
+                <img [src]="'data:image/png;base64,' + previewFile.base64" [style.maxWidth.px]="200" [style.maxHeight.px]="200" />
+                <div>Resolution: {{previewFile.width}} x {{previewFile.height}}</div>
+              </div>
+              <div>Name: {{previewFile.name}}</div>
+              <div>Type: {{previewFile.type}}</div>
+              <div>Added by: {{previewFile.addedBy}}</div>
+              <div>Timestamp: {{previewFile.timestamp | date:'short'}}</div>
+              <button (click)="confirmPreviewUpload()">Confirm Upload</button>
+              <button (click)="cancelPreviewUpload()">Cancel</button>
             </div>
             <div *ngIf="selectedFolder.files.length > 0" class="folder-files-list">
               <h3>Files in '{{selectedFolder.name}}'</h3>
-              <ul>
-                <li *ngFor="let file of selectedFolder.files">
-                  <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                  <span class="file-name">{{ file.name }}</span>
-                  <span class="file-type">({{ file.type }})</span>
-                  <span class="file-meta">Added by: {{ file.addedBy }} at {{ file.timestamp | date:'short' }}</span>
+              <div class="file-grid">
+                <div class="file-card" *ngFor="let file of selectedFolder.files">
+                  <div class="file-preview">
+                    <img *ngIf="file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg'" [src]="'data:image/' + file.type + ';base64,' + file.content" alt="{{file.name}}" />
+                    <span *ngIf="file.type !== 'png' && file.type !== 'jpg' && file.type !== 'jpeg'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                  </div>
+                  <div class="file-info">
+                    <div class="file-name">{{ file.name }}</div>
+                    <div class="file-type">({{ file.type }})</div>
+                    <div class="file-meta">Added by: {{ file.addedBy }}</div>
+                    <div class="file-meta">{{ file.timestamp | date:'short' }}</div>
+                  </div>
                   <button (click)="deleteFile(file, $event)">Delete</button>
-                </li>
-              </ul>
+                </div>
+              </div>
             </div>
           </div>
           <ng-container *ngIf="!selectedFolder">
@@ -679,33 +705,120 @@ import { DomSanitizer } from '@angular/platform-browser';
       color: #fff;
       font-size: 1.1rem;
     }
-    .file-meta {
-      color: #b0c4de;
-      font-size: 0.95rem;
-      margin-left: 1rem;
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    .file-card {
+      background: #22304a;
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      color: #fff;
+      position: relative;
+    }
+    .file-preview {
+      width: 100px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.5rem;
+    }
+    .file-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
     }
     .file-icon {
-      font-size: 1.5rem;
+      font-size: 2.5rem;
+      color: #F87060;
+    }
+    .file-info {
+      text-align: center;
+      margin-bottom: 0.5rem;
     }
     .file-name {
-      font-weight: 500;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.2rem;
     }
     .file-type {
       color: #b0c4de;
       font-size: 0.95rem;
+      margin-bottom: 0.2rem;
     }
-    .folder-files-list button {
+    .file-meta {
+      color: #b0c4de;
+      font-size: 0.85rem;
+    }
+    .file-card button {
       background: #e74c3c;
       color: white;
       border: none;
       padding: 0.3rem 0.7rem;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
       transition: background-color 0.2s ease;
     }
-    .folder-files-list button:hover {
+    .file-card button:hover {
       background: #c0392b;
+    }
+    .file-preview-card {
+      background: #3a4651;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: white;
+      font-size: 0.95rem;
+    }
+    .file-preview-card img {
+      max-width: 200px;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .file-preview-card button {
+      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+      width: 100%;
+    }
+    .file-preview-card button:hover {
+      background: #1a367b;
+    }
+    .add-btn {
+      background: #1abc9c;
+      color: white;
+      border: none;
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      margin-right: 0.5rem;
+      transition: background 0.2s;
+    }
+    .add-btn:hover {
+      background: #16a085;
     }
   `]
 })
@@ -724,13 +837,27 @@ export class DashboardComponent implements OnInit {
   renamingFolder: Folder | null = null;
   renameFolderName = '';
   newFileName = '';
-  newFileType: 'png' | 'json' | 'xml' = 'json';
+  newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' = 'json';
   newFileContent = '';
   newFileBase64 = '';
 
   repoOptionsRepo: Repository | null = null;
   folderOptionsFolder: Folder | null = null;
   isDragOver = false;
+  previewFile: {
+    name: string;
+    type: string;
+    base64: string;
+    width?: number;
+    height?: number;
+    addedBy: string;
+    timestamp: string;
+  } | null = null;
+
+  showDropzoneText = false;
+  showRepoForm = false;
+  showFolderFormRepoId: string | null = null;
+  showFileFormFolderId: string | null = null;
 
   constructor(
     private authService: AuthService,
@@ -774,6 +901,8 @@ export class DashboardComponent implements OnInit {
     this.contentService.addRepository(this.newRepoName.trim());
     this.newRepoName = '';
     this.loadRepositories();
+    this.showDropzoneText = true;
+    this.showRepoForm = false;
   }
   selectRepo(repo: Repository): void {
     this.selectedRepo = repo;
@@ -819,8 +948,10 @@ export class DashboardComponent implements OnInit {
     this.contentService.addFolder(this.selectedRepo.id, this.newFolderName.trim());
     this.newFolderName = '';
     this.loadRepositories();
+    this.showDropzoneText = true;
+    this.showFolderFormRepoId = null;
   }
-  selectFolder(folder: Folder): void {
+  selectFolder(folder: Folder): void{
     this.selectedFolder = folder;
     this.selectedFiles = folder.files;
   }
@@ -861,7 +992,7 @@ export class DashboardComponent implements OnInit {
   addFile(): void {
     if (!this.selectedRepo || !this.selectedFolder || !this.newFileName.trim()) return;
     let content = this.newFileContent;
-    if (this.newFileType === 'png') {
+    if (this.newFileType === 'png' || this.newFileType === 'jpg' || this.newFileType === 'jpeg') {
       content = this.newFileBase64;
     }
     const file: FileItem = {
@@ -878,6 +1009,8 @@ export class DashboardComponent implements OnInit {
     this.newFileContent = '';
     this.newFileBase64 = '';
     this.loadRepositories();
+    this.showDropzoneText = true;
+    this.showFileFormFolderId = null;
   }
   onFileSelected(event: any): void {
     const file = event.target.files[0];
@@ -909,41 +1042,68 @@ export class DashboardComponent implements OnInit {
     this.isDragOver = false;
     if (!event.dataTransfer || !event.dataTransfer.files.length || !this.selectedRepo || !this.selectedFolder) return;
     const file = event.dataTransfer.files[0];
-    const reader = new FileReader();
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    let type: 'png' | 'json' | 'xml' = 'json';
+    let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' = 'json';
     if (ext === 'png') type = 'png';
+    else if (ext === 'jpg') type = 'jpg';
+    else if (ext === 'jpeg') type = 'jpeg';
     else if (ext === 'xml') type = 'xml';
     else if (ext === 'json') type = 'json';
     const addedBy = this.user?.name || this.user?.email || 'Unknown';
     const timestamp = new Date().toISOString();
-    reader.onload = (e: any) => {
-      let content = '';
-      if (type === 'png') {
-        // Remove data URL prefix
-        content = e.target.result.split(',')[1];
-      } else {
-        content = e.target.result;
-      }
-      const fileItem: FileItem = {
-        id: this.generateId(),
-        name: file.name,
-        type,
-        content,
-        addedBy,
-        timestamp
-      } as any;
-      this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
-      this.loadRepositories();
-      // Optionally re-select the folder to update UI
-      const repo = this.repositories.find(r => r.id === this.selectedRepo!.id);
-      this.selectedFolder = repo?.folders.find(f => f.id === this.selectedFolder!.id) || null;
-    };
-    if (type === 'png') {
+
+    if (type === 'png' || type === 'jpg' || type === 'jpeg') {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        const base64 = e.target.result.split(',')[1];
+        const img = new Image();
+        img.onload = () => {
+          this.previewFile = {
+            name: file.name,
+            type,
+            base64,
+            width: img.width,
+            height: img.height,
+            addedBy,
+            timestamp
+          };
+        };
+        img.src = e.target.result;
+      };
       reader.readAsDataURL(file);
     } else {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.previewFile = {
+          name: file.name,
+          type,
+          base64: e.target.result,
+          addedBy,
+          timestamp
+        };
+      };
       reader.readAsText(file);
     }
+  }
+
+  confirmPreviewUpload(): void {
+    if (!this.previewFile || !this.selectedRepo || !this.selectedFolder) return;
+    const fileItem: FileItem = {
+      id: this.generateId(),
+      name: this.previewFile.name,
+      type: this.previewFile.type as any,
+      content: this.previewFile.type === 'png' ? this.previewFile.base64 : this.previewFile.base64,
+      addedBy: this.previewFile.addedBy,
+      timestamp: this.previewFile.timestamp
+    };
+    this.contentService.addFile(this.selectedRepo.id, this.selectedFolder.id, fileItem);
+    this.previewFile = null;
+    this.loadRepositories();
+    this.showDropzoneText = true;
+    this.showFileFormFolderId = null;
+  }
+  cancelPreviewUpload(): void {
+    this.previewFile = null;
   }
 
   // Utility
@@ -959,6 +1119,11 @@ export class DashboardComponent implements OnInit {
       case 'markdown': return '📝';
       case 'pdf': return '📕';
       case 'doc': return '📄';
+      case 'json': return '🟩';
+      case 'xml': return '🟪';
+      case 'png': return '🖼️';
+      case 'jpg': return '🖼️';
+      case 'jpeg': return '🖼️';
       default: return '📁';
     }
   }
