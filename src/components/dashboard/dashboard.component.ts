@@ -83,7 +83,7 @@ import { DomSanitizer } from '@angular/platform-browser';
                           <option value="txt">TXT</option>
                           <option value="mp4">MP4</option>
                         </select>
-                        <input *ngIf="newFileType === 'png' || newFileType === 'jpg' || newFileType === 'jpeg'" type="file" (change)="onFileSelected($event)" multiple />
+                        <input  type="file" (change)="onFileSelected($event)" hidden />
                         <textarea *ngIf="newFileType !== 'png' && newFileType !== 'jpg' && newFileType !== 'jpeg'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
                         <button type="submit">Add File</button>
                         <button type="button" (click)="showFileFormFolderId = null">Cancel</button>
@@ -746,6 +746,7 @@ import { DomSanitizer } from '@angular/platform-browser';
       color: #F87060;
       font-weight: bold;
       margin-bottom: 0.5rem;
+      cursor: pointer;
     }
     .dropzone-text {
       color: #fff;
