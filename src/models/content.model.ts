@@ -2,8 +2,8 @@
 export interface FileItem {
   id: string;
   name: string;
-  type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4';
-  content: string; // base64 for png/jpg/jpeg/mp4, string for json/xml/txt
+  type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' | 'pdf';
+  content: string; // base64 for png/jpg/jpeg/mp4/pdf, string for json/xml/txt
   addedBy: string;
   timestamp: string;
 }

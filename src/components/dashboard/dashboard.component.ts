@@ -6,7 +6,7 @@ import { User } from '../../models/user.model';
 import { LocalContentService } from '../../services/local-content.service';
 import { Repository, Folder, FileItem } from '../../models/content.model';
 import { FormsModule } from '@angular/forms';
-import { DomSanitizer } from '@angular/platform-browser';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-dashboard',
@@ -82,6 +82,7 @@ import { DomSanitizer } from '@angular/platform-browser';
                           <option value="xml">XML</option>
                           <option value="txt">TXT</option>
                           <option value="mp4">MP4</option>
+                          <option value="pdf">PDF</option>
                         </select>
                         <input *ngIf="newFileType === 'png' || newFileType === 'jpg' || newFileType === 'jpeg'" type="file" (change)="onFileSelected($event)" multiple />
                         <textarea *ngIf="newFileType !== 'png' && newFileType !== 'jpg' && newFileType !== 'jpeg'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
@@ -153,7 +154,8 @@ import { DomSanitizer } from '@angular/platform-browser';
                     <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
                     <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
                     <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
-                    <video *ngSwitchCase="'mp4'" controls [src]="'data:video/mp4;base64,' + previewModalFile.content" style="max-width: 100%; max-height: 70vh;"></video>
+                    <embed *ngSwitchCase="'pdf'" [src]="getSafePdfUrl(previewModalFile.content)" type="application/pdf" style="width:80vw; height:60vh; border-radius:8px; background:#fff;" />
+                    <video *ngSwitchCase="'mp4'" controls [src]="getSafeMp4Url(previewModalFile.content)" style="max-width: 100%; max-height: 70vh;"></video>
                     <pre *ngSwitchCase="'txt'">{{ previewModalFile.content }}</pre>
                     <pre *ngSwitchCase="'json'">{{ formatJson(previewModalFile.content) }}</pre>
                     <pre *ngSwitchCase="'xml'">{{ formatXml(previewModalFile.content) }}</pre>
@@ -164,47 +166,87 @@ import { DomSanitizer } from '@angular/platform-browser';
             </div>
           </div>
           <ng-container *ngIf="!selectedFolder">
+            <!-- Folders grid -->
+            <div class="folders-grid-section">
+              <h3>Folders</h3>
+              <div class="folders-grid">
+                <div class="folder-card" *ngFor="let folder of getAllFolders()" (click)="selectFolderFromGrid(folder)">
+                  <div class="folder-icon">📁</div>
+                  <div class="folder-name">{{ folder.name }}</div>
+                  <div class="folder-path">{{ folder.repoName }}/{{ folder.name }}</div>
+                </div>
+              </div>
+            </div>
             <div class="welcome-section">
               <h2>Welcome back, {{ user?.name }}!</h2>
               <p>You have successfully logged in to your account.</p>
             </div>
-            <div *ngIf="selectedFiles.length > 0" class="files-section">
-              <h3>Files</h3>
-              <ul class="selected-files-list">
-                <li *ngFor="let file of selectedFiles">
-                  <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                  <span class="file-name">{{ file.name }}</span>
-                  <span class="file-type">({{ file.type }})</span>
-                </li>
-              </ul>
+            <!-- Recent files section -->
+            <div class="recent-files-section">
+              <h3>Recent Files</h3>
+              <table class="recent-files-table">
+                <thead>
+                  <tr>
+                    <th>Nom</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Propriétaire</th>
+                    <th>Emplacement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let file of getRecentFiles()">
+                    <td>
+                      <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                      <span class="file-name">{{ file.name }}</span>
+                    </td>
+                    <td>{{ file.type | uppercase }}</td>
+                    <td>{{ file.timestamp | date:'dd MMM yyyy, HH:mm' }}</td>
+                    <td>{{ file.addedBy }}</td>
+                    <td>{{ file.repoName }} / {{ file.folderName }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <div class="dashboard-grid" *ngIf="selectedFiles.length === 0">
-              <div class="dashboard-card">
-                <div class="card-icon">👤</div>
-                <h3>Profile</h3>
-                <p>Manage your account settings and personal information</p>
-                <button class="card-button" (click)="goToProfile()">View Profile</button>
-              </div>
-
-              <div class="dashboard-card">
-                <div class="card-icon">📊</div>
-                <h3>Analytics</h3>
-                <p>View your activity and usage statistics</p>
-                <button class="card-button">View Analytics</button>
-              </div>
-
-              <div class="dashboard-card">
-                <div class="card-icon">⚙️</div>
-                <h3>Settings</h3>
-                <p>Configure your preferences and account settings</p>
-                <button class="card-button">Open Settings</button>
-              </div>
-
-              <div class="dashboard-card">
-                <div class="card-icon">💬</div>
-                <h3>Support</h3>
-                <p>Get help and contact our support team</p>
-                <button class="card-button">Contact Support</button>
+            <!-- Floating add button -->
+            <button
+              class="fab"
+              (click)="openAddMenu()"
+              #fabBtn
+              [attr.data-fab-btn]="true"
+              (mouseenter)="fabBtnRef = fabBtn"
+              (mouseleave)="fabBtnRef = fabBtn"
+            >
+              <span
+                class="fab-plus"
+                [style.transform]="'translate(' + fabPlusOffsetX + 'px,' + fabPlusOffsetY + 'px)'"
+              >+</span>
+            </button>
+            <div *ngIf="showAddMenu" class="fab-menu" (clickOutside)="closeAddMenu()">
+              <button (click)="openAddRepo()">Add Repo</button>
+              <button (click)="openAddFolder()">Add Folder</button>
+            </div>
+            <!-- Add Folder Modal -->
+            <div *ngIf="showAddFolderModal" class="modal-overlay" (click)="closeAddFolderModal()">
+              <div class="modal-content" (click)="$event.stopPropagation()">
+                <h3>Add Folder</h3>
+                <div class="add-folder-mode-toggle">
+                  <button [class.active]="addFolderMode === 'existing'" (click)="addFolderMode = 'existing'">Add to Existing Repo</button>
+                  <button [class.active]="addFolderMode === 'new'" (click)="addFolderMode = 'new'">New Repo</button>
+                </div>
+                <ng-container *ngIf="addFolderMode === 'existing'">
+                  <label>Repository:
+                    <select [(ngModel)]="addFolderRepoId">
+                      <option *ngFor="let repo of repositories" [value]="repo.id">{{ repo.name }}</option>
+                    </select>
+                  </label>
+                </ng-container>
+                <ng-container *ngIf="addFolderMode === 'new'">
+                  <input [(ngModel)]="newRepoNameForFolder" placeholder="New repository name" />
+                </ng-container>
+                <input [(ngModel)]="newFolderName" placeholder="Folder name" />
+                <button (click)="confirmAddFolder()">Add</button>
+                <button (click)="closeAddFolderModal()">Cancel</button>
               </div>
             </div>
           </ng-container>
@@ -947,6 +989,214 @@ import { DomSanitizer } from '@angular/platform-browser';
       cursor: pointer;
       z-index: 10;
     }
+    .folders-grid-section {
+      margin-bottom: 2rem;
+    }
+    .folders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.2rem;
+      margin-top: 1rem;
+    }
+    .folder-card {
+      background: #22304a;
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.18s, box-shadow 0.18s;
+    }
+    .folder-card:hover {
+      background: #2a3441;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    .folder-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.5rem;
+    }
+    .folder-path {
+      color: #b0c4de;
+      font-size: 0.92rem;
+      margin-top: 0.2rem;
+      font-style: italic;
+      opacity: 0.85;
+    }
+    .repo-name {
+      color: #b0c4de;
+      font-size: 0.95rem;
+    }
+    .recent-files-section {
+      margin-top: 2.5rem;
+      margin-bottom: 2rem;
+    }
+    .recent-files-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem;
+    }
+    .recent-file-card {
+      background: #22304a;
+      border-radius: 10px;
+      padding: 0.8rem 1.2rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 180px;
+      max-width: 220px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .recent-file-card .file-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.2rem;
+    }
+    .recent-file-card .file-name {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+    .recent-file-card .file-type {
+      color: #b0c4de;
+      font-size: 0.95rem;
+    }
+    .recent-file-card .file-meta {
+      color: #b0c4de;
+      font-size: 0.85rem;
+    }
+    .fab {
+      overflow: hidden;
+      position: fixed;
+      bottom: 2.5rem;
+      right: 2.5rem;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
+      color: #fff;
+      font-size: 2.5rem;
+      border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      cursor: pointer;
+      z-index: 1200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.18s;
+    }
+    .fab:hover {
+      background: linear-gradient(135deg, #F87060 0%, #102542 100%);
+    }
+    .fab-menu {
+      position: fixed;
+      bottom: 7.5rem;
+      right: 2.5rem;
+      background: #22304a;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      z-index: 1201;
+    }
+    .fab-menu button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0.5rem 0;
+      text-align: left;
+      transition: color 0.18s;
+    }
+    .fab-menu button:hover {
+      color: #F87060;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+    }
+    .modal-content {
+      background: #22304a;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-width: 320px;
+      max-width: 90vw;
+    }
+    .recent-files-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #22304a;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .recent-files-table th, .recent-files-table td {
+      padding: 0.85rem 1.2rem;
+      text-align: left;
+      color: #fff;
+      font-size: 1rem;
+    }
+    .recent-files-table th {
+      background: #2a3441;
+      font-weight: 600;
+      border-bottom: 2px solid #34405a;
+    }
+    .recent-files-table tr:not(:last-child) td {
+      border-bottom: 1px solid #34405a;
+    }
+    .recent-files-table .file-icon {
+      font-size: 1.3rem;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+    .recent-files-table .file-name {
+      font-weight: 500;
+      vertical-align: middle;
+    }
+    .fab-plus {
+      display: inline-block;
+      transition: transform 0.05s cubic-bezier(0.4,0,0.2,1);
+      font-size: 2.5rem;
+      pointer-events: none;
+      user-select: none;
+    }
+    .add-folder-mode-toggle {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .add-folder-mode-toggle button {
+      background: #2a3441;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.18s, color 0.18s;
+    }
+    .add-folder-mode-toggle button.active, .add-folder-mode-toggle button:hover {
+      background: #F87060;
+      color: #fff;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -965,11 +1215,10 @@ export class DashboardComponent implements OnInit {
   renamingFolder: Folder | null = null;
   renameFolderName = '';
   newFileName = '';
-  newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' = 'json';
+  newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' | 'pdf' = 'json';
   newFileContent = '';
   newFileBase64 = '';
   isUploading = false;
-
   repoOptionsRepo: Repository | null = null;
   folderOptionsFolder: Folder | null = null;
   isDragOver = false;
@@ -982,11 +1231,19 @@ export class DashboardComponent implements OnInit {
     addedBy: string;
     timestamp: string;
   } | null = null;
-
   showDropzoneText = false;
   showRepoForm = false;
   showFolderFormRepoId: string | null = null;
   showFileFormFolderId: string | null = null;
+  // New state for floating button and add folder modal
+  showAddMenu = false;
+  showAddFolderModal = false;
+  addFolderRepoId: string | null = null;
+  addFolderMode: 'existing' | 'new' = 'existing';
+  newRepoNameForFolder = '';
+  fabPlusOffsetX = 0;
+  fabPlusOffsetY = 0;
+  fabBtnRef: HTMLElement | null = null;
 
   constructor(
     private authService: AuthService,
@@ -998,11 +1255,14 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.authService.getCurrentUser();
     this.loadRepositories();
-    document.addEventListener('click', this.handleClickOutside.bind(this)); 
-    
+    document.addEventListener('click', this.handleClickOutside.bind(this));
+    document.addEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
+    document.addEventListener('mouseleave', this.handleGlobalMouseLeave.bind(this));
   }
   ngOnDestroy(): void {
     document.removeEventListener('click', this.handleClickOutside.bind(this));
+    document.removeEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
+    document.removeEventListener('mouseleave', this.handleGlobalMouseLeave.bind(this));
   }
   handleClickOutside(event: MouseEvent): void {
     const target = event.target as HTMLElement;
@@ -1194,11 +1454,11 @@ export class DashboardComponent implements OnInit {
     this.isUploading = true;
     const files = event.dataTransfer.files;
     let processed = 0;
-    const allowedTypes = ['png', 'jpg', 'jpeg', 'json', 'xml', 'txt', 'mp4'];
+    const allowedTypes = ['png', 'jpg', 'jpeg', 'json', 'xml', 'txt', 'mp4', 'pdf'];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' = 'json';
+      let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' | 'pdf' = 'json';
       if (ext === 'png') type = 'png';
       else if (ext === 'jpg') type = 'jpg';
       else if (ext === 'jpeg') type = 'jpeg';
@@ -1206,12 +1466,13 @@ export class DashboardComponent implements OnInit {
       else if (ext === 'json') type = 'json';
       else if (ext === 'txt') type = 'txt';
       else if (ext === 'mp4') type = 'mp4';
+      else if (ext === 'pdf') type = 'pdf';
       // skip if not allowed
       if (!allowedTypes.includes(type)) continue;
       const addedBy = this.user?.name || this.user?.email || 'Unknown';
       const timestamp = new Date().toISOString();
 
-      if (type === 'png' || type === 'jpg' || type === 'jpeg') {
+      if (type === 'png' || type === 'jpg' || type === 'jpeg' || type === 'mp4' || type === 'pdf') {
         const reader = new FileReader();
         reader.onload = (e: any) => {
           const base64 = e.target.result.split(',')[1];
@@ -1358,5 +1619,121 @@ export class DashboardComponent implements OnInit {
     } catch {
       return content;
     }
+  }
+
+  getSafePdfUrl(base64: string): SafeResourceUrl {
+    try {
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    } catch (e) {
+      // Return a blank PDF as a SafeResourceUrl, not an empty string
+      const blank = 'data:application/pdf;base64,';
+      return this.sanitizer.bypassSecurityTrustResourceUrl(blank);
+    }
+  }
+
+  getSafeMp4Url(base64: string): SafeResourceUrl {
+    try {
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    } catch (e) {
+      // Return a blank PDF as a SafeResourceUrl, not an empty string
+      const blank = 'data:application/pdf;base64,';
+      return this.sanitizer.bypassSecurityTrustResourceUrl(blank);
+    }
+  }
+
+  // Utility to get all folders across all repos
+  getAllFolders(): Array<Folder & { repoId: string, repoName: string }> {
+    return this.repositories.flatMap(r => r.folders.map(f => ({ ...f, repoId: r.id, repoName: r.name })));
+  }
+  // Utility to get recent files (7 most recent)
+  getRecentFiles(): (FileItem & { folderName: string, repoName: string })[] {
+    const files: (FileItem & { folderName: string, repoName: string })[] = [];
+    for (const repo of this.repositories) {
+      for (const folder of repo.folders) {
+        for (const file of folder.files) {
+          files.push({ ...file, folderName: folder.name, repoName: repo.name });
+        }
+      }
+    }
+    return files.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 7);
+  }
+  // Handler for folder grid click
+  selectFolderFromGrid(folder: Folder & { repoId: string, repoName: string }): void {
+    const repo = this.repositories.find(r => r.id === folder.repoId);
+    if (repo) {
+      this.selectedRepo = repo;
+      this.selectedFolder = repo.folders.find(f => f.id === folder.id) || null;
+      this.selectedFiles = this.selectedFolder?.files || [];
+    }
+  }
+  // Floating button handlers
+  openAddMenu(): void { this.showAddMenu = true; }
+  closeAddMenu(): void { this.showAddMenu = false; }
+  openAddRepo(): void { this.showRepoForm = true; this.showAddMenu = false; }
+  openAddFolder(): void { this.showAddFolderModal = true; this.showAddMenu = false; }
+  closeAddFolderModal(): void { this.showAddFolderModal = false; this.addFolderRepoId = null; }
+  confirmAddFolder(): void {
+    if (this.addFolderMode === 'existing') {
+      if (this.addFolderRepoId && this.newFolderName.trim()) {
+        this.contentService.addFolder(this.addFolderRepoId, this.newFolderName.trim());
+        this.newFolderName = '';
+        this.closeAddFolderModal();
+        this.loadRepositories();
+      }
+    } else if (this.addFolderMode === 'new') {
+      if (this.newRepoNameForFolder.trim() && this.newFolderName.trim()) {
+        const repoId = this.contentService.addRepository(this.newRepoNameForFolder.trim());
+        if (repoId) {
+          this.contentService.addFolder(repoId, this.newFolderName.trim());
+        }
+        this.newRepoNameForFolder = '';
+        this.newFolderName = '';
+        this.closeAddFolderModal();
+        this.loadRepositories();
+      }
+    }
+  }
+  handleGlobalMouseMove(event: MouseEvent) {
+    // Find the FAB button in the DOM
+    let btn = this.fabBtnRef;
+    if (!btn) {
+      btn = document.querySelector('[data-fab-btn="true"]') as HTMLElement;
+      if (!btn) return;
+      this.fabBtnRef = btn;
+    }
+    const rect = btn.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    let dx = event.clientX - centerX;
+    let dy = event.clientY - centerY;
+    const maxDist = rect.width / 2 - 16;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > maxDist) {
+      const ratio = maxDist / dist;
+      dx *= ratio;
+      dy *= ratio;
+    }
+    this.fabPlusOffsetX = dx;
+    this.fabPlusOffsetY = dy;
+  }
+  handleGlobalMouseLeave() {
+    this.fabPlusOffsetX = 0;
+    this.fabPlusOffsetY = 0;
   }
 }

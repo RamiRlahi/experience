@@ -18,10 +18,12 @@ export class LocalContentService {
     return this.getRepositoriesFromStorage();
   }
 
-  addRepository(name: string): void {
+  addRepository(name: string): string {
     const repos = this.getRepositoriesFromStorage();
-    repos.push({ id: this.generateId(), name, folders: [] });
+    const id = this.generateId();
+    repos.push({ id, name, folders: [] });
     this.saveRepositories(repos);
+    return id;
   }
 
   renameRepository(id: string, newName: string): void {
