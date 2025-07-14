@@ -29,6 +29,8 @@ import { DomSanitizer } from '@angular/platform-browser';
 
       <div class="dashboard-body">
         <aside class="sidebar">
+        <button (click)="goToDashboard" class="card-button">Home</button>
+        <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="card-button">Shared with me</button>
           <h2>Repositories</h2>
           <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="add-btn">Add Repo</button>
           <form *ngIf="showRepoForm" (ngSubmit)="addRepository()" class="repo-form">
@@ -63,7 +65,6 @@ import { DomSanitizer } from '@angular/platform-browser';
                     <div class="folder-name" (click)="selectFolder(folder)">{{ folder.name }}
                       <button class="more-btn" (click)="toggleFolderOptions(folder, $event)">...</button>
                       <div *ngIf="folder === folderOptionsFolder" class="folder-options">
-                        <button (click)="showFileFormFolderId = folder.id; folderOptionsFolder = null">Add File</button>
                         <button (click)="startRenameFolder(folder, $event)">Rename</button>
                         <button (click)="deleteFolder(folder, $event)">Delete</button>
                       </div>
@@ -73,28 +74,7 @@ import { DomSanitizer } from '@angular/platform-browser';
                       <button (click)="confirmRenameFolder(folder)">Save</button>
                       <button (click)="cancelRenameFolder()">Cancel</button>
                     </div>
-                    <div *ngIf="folder === selectedFolder">
-                      <form *ngIf="showFileFormFolderId === folder.id" (ngSubmit)="addFile()" class="file-form">
-                        <input [(ngModel)]="newFileName" name="fileName" placeholder="File name" required />
-                        <select [(ngModel)]="newFileType" name="fileType" required>
-                          <option value="png">PNG</option>
-                          <option value="json">JSON</option>
-                          <option value="xml">XML</option>
-                          <option value="txt">TXT</option>
-                          <option value="mp4">MP4</option>
-                        </select>
-                        <input  type="file" (change)="onFileSelected($event)" hidden />
-                        <textarea *ngIf="newFileType !== 'png' && newFileType !== 'jpg' && newFileType !== 'jpeg'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
-                        <button type="submit">Add File</button>
-                        <button type="button" (click)="showFileFormFolderId = null">Cancel</button>
-                      </form>
-                      <ul class="file-list">
-                        <li *ngFor="let file of folder.files">
-                          {{ file.name }} ({{ file.type }})
-                          <button (click)="deleteFile(file, $event)">Delete</button>
-                        </li>
-                      </ul>
-                    </div>
+                   
                   </li>
                 </ul>
               </div>
@@ -110,7 +90,7 @@ import { DomSanitizer } from '@angular/platform-browser';
        (drop)="onFileDrop($event)"
        [class.dragover]="isDragOver">
        
-    <!-- PLUS SIGN now a file input label -->
+    
     <label class="plus-sign" title="Click to choose file">
       +
       <input type="file" (change)="onFileSelected($event)" hidden />
@@ -1322,6 +1302,9 @@ export class DashboardComponent implements OnInit {
 
   goToProfile(): void {
     this.router.navigate(['/profile']);
+  }
+  goToDashboard(): void{
+    this.router.navigate(['/Dashboard']);
   }
 
   getDaysRegistered(): number {
