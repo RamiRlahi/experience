@@ -103,30 +103,40 @@ import { DomSanitizer } from '@angular/platform-browser';
         </aside>
 
         <main class="dashboard-main">
-          <div *ngIf="selectedFolder" class="dropzone-wrapper">
-            <div *ngIf="isUploading" class="loading-spinner"></div>
-            <div class="dropzone-card"
-                 (dragover)="onDragOver($event)"
-                 (dragleave)="onDragLeave($event)"
-                 (drop)="onFileDrop($event)"
-                 [class.dragover]="isDragOver">
-              <div class="plus-sign">+</div>
-              <div *ngIf="showDropzoneText" class="dropzone-text">
-                Drag & drop a file here to add to '{{selectedFolder.name}}'
-              </div>
-            </div>
-            <div *ngIf="previewFile" class="file-preview-card">
-              <div *ngIf="previewFile.type === 'png'">
-                <img [src]="'data:image/png;base64,' + previewFile.base64" [style.maxWidth.px]="200" [style.maxHeight.px]="200" />
-                <div>Resolution: {{previewFile.width}} x {{previewFile.height}}</div>
-              </div>
-              <div>Name: {{previewFile.name}}</div>
-              <div>Type: {{previewFile.type}}</div>
-              <div>Added by: {{previewFile.addedBy}}</div>
-              <div>Timestamp: {{previewFile.timestamp | date:'short'}}</div>
-              <button (click)="confirmPreviewUpload()">Confirm Upload</button>
-              <button (click)="cancelPreviewUpload()">Cancel</button>
-            </div>
+        <div *ngIf="selectedFolder" class="dropzone-wrapper">
+  <div class="dropzone-card"
+       (dragover)="onDragOver($event)"
+       (dragleave)="onDragLeave($event)"
+       (drop)="onFileDrop($event)"
+       [class.dragover]="isDragOver">
+       
+    <!-- PLUS SIGN now a file input label -->
+    <label class="plus-sign" title="Click to choose file">
+      +
+      <input type="file" (change)="onFileSelected($event)" hidden />
+    </label>
+
+    <div *ngIf="showDropzoneText" class="dropzone-text">
+      Drag & drop a file here or click + to add to '{{selectedFolder.name}}'
+    </div>
+  </div>
+
+  <!-- File preview stays the same -->
+  <div *ngIf="previewFile" class="file-preview-card">
+    <div *ngIf="previewFile.type === 'png'">
+      <img [src]="'data:image/png;base64,' + previewFile.base64"
+           [style.maxWidth.px]="200" [style.maxHeight.px]="200" />
+      <div>Resolution: {{previewFile.width}} x {{previewFile.height}}</div>
+    </div>
+    <div>Name: {{previewFile.name}}</div>
+    <div>Type: {{previewFile.type}}</div>
+    <div>Added by: {{previewFile.addedBy}}</div>
+    <div>Timestamp: {{ previewFile.timestamp | date:'short' }}</div>
+    <button (click)="confirmPreviewUpload()">Confirm Upload</button>
+    <button (click)="cancelPreviewUpload()">Cancel</button>
+  </div>
+
+
             <div *ngIf="selectedFolder.files.length > 0" class="folder-files-list">
               <h3>Files in '{{selectedFolder.name}}'</h3>
               <div class="file-grid">
