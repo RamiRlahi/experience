@@ -80,8 +80,10 @@ import { DomSanitizer } from '@angular/platform-browser';
                           <option value="png">PNG</option>
                           <option value="json">JSON</option>
                           <option value="xml">XML</option>
+                          <option value="txt">TXT</option>
+                          <option value="mp4">MP4</option>
                         </select>
-                        <input *ngIf="newFileType === 'png' || newFileType === 'jpg' || newFileType === 'jpeg'" type="file" (change)="onFileSelected($event)" />
+                        <input *ngIf="newFileType === 'png' || newFileType === 'jpg' || newFileType === 'jpeg'" type="file" (change)="onFileSelected($event)" multiple />
                         <textarea *ngIf="newFileType !== 'png' && newFileType !== 'jpg' && newFileType !== 'jpeg'" [(ngModel)]="newFileContent" name="fileContent" placeholder="File content"></textarea>
                         <button type="submit">Add File</button>
                         <button type="button" (click)="showFileFormFolderId = null">Cancel</button>
@@ -102,6 +104,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 
         <main class="dashboard-main">
           <div *ngIf="selectedFolder" class="dropzone-wrapper">
+            <div *ngIf="isUploading" class="loading-spinner"></div>
             <div class="dropzone-card"
                  (dragover)="onDragOver($event)"
                  (dragleave)="onDragLeave($event)"
@@ -130,7 +133,8 @@ import { DomSanitizer } from '@angular/platform-browser';
                 <div class="file-card" *ngFor="let file of selectedFolder.files">
                   <div class="file-preview">
                     <img *ngIf="file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg'" [src]="'data:image/' + file.type + ';base64,' + file.content" alt="{{file.name}}" />
-                    <span *ngIf="file.type !== 'png' && file.type !== 'jpg' && file.type !== 'jpeg'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                    <span *ngIf="file.type === 'txt' || file.type === 'json' || file.type === 'xml'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
+                    <span *ngIf="file.type === 'mp4'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
                   </div>
                   <div class="file-info">
                     <div class="file-name">{{ file.name }}</div>
@@ -138,7 +142,23 @@ import { DomSanitizer } from '@angular/platform-browser';
                     <div class="file-meta">Added by: {{ file.addedBy }}</div>
                     <div class="file-meta">{{ file.timestamp | date:'short' }}</div>
                   </div>
+                  <button (click)="previewModalFile = file">Preview</button>
                   <button (click)="deleteFile(file, $event)">Delete</button>
+                </div>
+              </div>
+              <div *ngIf="previewModalFile" class="preview-modal" (click)="previewModalFile = null">
+                <div class="preview-modal-content" (click)="$event.stopPropagation()">
+                  <button class="close-btn" (click)="previewModalFile = null">&times;</button>
+                  <ng-container [ngSwitch]="previewModalFile.type">
+                    <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
+                    <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
+                    <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
+                    <video *ngSwitchCase="'mp4'" controls [src]="'data:video/mp4;base64,' + previewModalFile.content" style="max-width: 100%; max-height: 70vh;"></video>
+                    <pre *ngSwitchCase="'txt'">{{ previewModalFile.content }}</pre>
+                    <pre *ngSwitchCase="'json'">{{ formatJson(previewModalFile.content) }}</pre>
+                    <pre *ngSwitchCase="'xml'">{{ formatXml(previewModalFile.content) }}</pre>
+                  </ng-container>
+                  <div class="file-meta">{{ previewModalFile.name }} ({{ previewModalFile.type }})</div>
                 </div>
               </div>
             </div>
@@ -223,6 +243,7 @@ import { DomSanitizer } from '@angular/platform-browser';
       transition: width 0.3s cubic-bezier(0.4,0,0.2,1), padding 0.3s cubic-bezier(0.4,0,0.2,1);
       overflow-x: hidden;
       cursor: pointer;
+      /* Add extra space between sidebar elements */
     }
     .sidebar:hover {
       width: 360px; /* expanded width */
@@ -252,6 +273,9 @@ import { DomSanitizer } from '@angular/platform-browser';
       padding: 0;
       margin: 0;
     }
+    .repo-list > li {
+      margin-bottom: 1.2rem;
+    }
     .repo-name {
       cursor: pointer;
       font-weight: 600;
@@ -259,6 +283,15 @@ import { DomSanitizer } from '@angular/platform-browser';
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      border: 2px solid white;
+      border-radius: 8px;
+      padding: 0.5rem 0.7rem;
+      background: rgba(255,255,255,0.03);
+      transition: border 0.2s, background 0.2s;
+    }
+    .repo-name:hover, .repo-name:focus {
+      background: rgba(255,255,255,0.08);
+      border-color: #F87060;
     }
     .repo-name span {
       display: inline-block;
@@ -272,10 +305,36 @@ import { DomSanitizer } from '@angular/platform-browser';
       padding-left: 1.5rem;
       margin: 0.25rem 0 0.5rem 0;
     }
+    .folder-list > li {
+      margin-bottom: 0.7rem;
+    }
     .folder-list li {
       font-size: 0.98rem;
       margin-bottom: 0.15rem;
       color: #b0c4de;
+    }
+    .folder-name {
+      position: relative;
+      border: 2px solid white;
+      border-radius: 8px;
+      padding: 0.35rem 0.6rem;
+      background: rgba(255,255,255,0.02);
+      margin-bottom: 0.2rem;
+      transition: border 0.2s, background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .folder-name:hover, .folder-name:focus {
+      background: rgba(255,255,255,0.08);
+      border-color: #F87060;
+    }
+    .folder-name span {
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+    .folder-name span.expanded {
+      transform: rotate(90deg);
     }
     @media (max-width: 900px) {
       .dashboard-body {
@@ -820,6 +879,74 @@ import { DomSanitizer } from '@angular/platform-browser';
     .add-btn:hover {
       background: #16a085;
     }
+    .loading-spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #F87060;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 1s linear infinite;
+      margin: 1.5rem auto;
+      display: block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .preview-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .preview-modal-content {
+      background: #22304a;
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow: auto;
+      position: relative;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .preview-modal-content img, .preview-modal-content video {
+      max-width: 80vw;
+      max-height: 60vh;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .preview-modal-content pre {
+      background: #2a3441;
+      color: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      max-width: 70vw;
+      max-height: 50vh;
+      overflow: auto;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+    .close-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      z-index: 10;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -828,6 +955,7 @@ export class DashboardComponent implements OnInit {
   selectedRepo: Repository | null = null;
   selectedFolder: Folder | null = null;
   selectedFiles: FileItem[] = [];
+  previewModalFile: FileItem | null = null;
 
   // UI state
   newRepoName = '';
@@ -837,9 +965,10 @@ export class DashboardComponent implements OnInit {
   renamingFolder: Folder | null = null;
   renameFolderName = '';
   newFileName = '';
-  newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' = 'json';
+  newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' = 'json';
   newFileContent = '';
   newFileBase64 = '';
+  isUploading = false;
 
   repoOptionsRepo: Repository | null = null;
   folderOptionsFolder: Folder | null = null;
@@ -869,7 +998,8 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.user = this.authService.getCurrentUser();
     this.loadRepositories();
-    document.addEventListener('click', this.handleClickOutside.bind(this));
+    document.addEventListener('click', this.handleClickOutside.bind(this)); 
+    
   }
   ngOnDestroy(): void {
     document.removeEventListener('click', this.handleClickOutside.bind(this));
@@ -991,6 +1121,7 @@ export class DashboardComponent implements OnInit {
   // File methods
   addFile(): void {
     if (!this.selectedRepo || !this.selectedFolder || !this.newFileName.trim()) return;
+    this.isUploading = true;
     let content = this.newFileContent;
     if (this.newFileType === 'png' || this.newFileType === 'jpg' || this.newFileType === 'jpeg') {
       content = this.newFileBase64;
@@ -1011,13 +1142,32 @@ export class DashboardComponent implements OnInit {
     this.loadRepositories();
     this.showDropzoneText = true;
     this.showFileFormFolderId = null;
+    setTimeout(() => { this.isUploading = false; }, 600); // Simulate loading
   }
   onFileSelected(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
+    const files: FileList = event.target.files;
+    if (!files || !files.length) return;
+    this.isUploading = true;
+    let processed = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const reader = new FileReader();
       reader.onload = (e: any) => {
-        this.newFileBase64 = e.target.result.split(',')[1]; // base64 only
+        const base64 = e.target.result.split(',')[1];
+        const fileItem: FileItem = {
+          id: this.generateId(),
+          name: file.name,
+          type: file.type.split('/')[1] as any, // e.g. 'png', 'jpg', 'jpeg'
+          content: base64,
+          addedBy: this.user?.name || this.user?.email || 'Unknown',
+          timestamp: new Date().toISOString()
+        };
+        this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
+        processed++;
+        if (processed === files.length) {
+          this.isUploading = false;
+          this.loadRepositories();
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -1041,58 +1191,81 @@ export class DashboardComponent implements OnInit {
     event.preventDefault();
     this.isDragOver = false;
     if (!event.dataTransfer || !event.dataTransfer.files.length || !this.selectedRepo || !this.selectedFolder) return;
-    const file = event.dataTransfer.files[0];
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' = 'json';
-    if (ext === 'png') type = 'png';
-    else if (ext === 'jpg') type = 'jpg';
-    else if (ext === 'jpeg') type = 'jpeg';
-    else if (ext === 'xml') type = 'xml';
-    else if (ext === 'json') type = 'json';
-    const addedBy = this.user?.name || this.user?.email || 'Unknown';
-    const timestamp = new Date().toISOString();
+    this.isUploading = true;
+    const files = event.dataTransfer.files;
+    let processed = 0;
+    const allowedTypes = ['png', 'jpg', 'jpeg', 'json', 'xml', 'txt', 'mp4'];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' = 'json';
+      if (ext === 'png') type = 'png';
+      else if (ext === 'jpg') type = 'jpg';
+      else if (ext === 'jpeg') type = 'jpeg';
+      else if (ext === 'xml') type = 'xml';
+      else if (ext === 'json') type = 'json';
+      else if (ext === 'txt') type = 'txt';
+      else if (ext === 'mp4') type = 'mp4';
+      // skip if not allowed
+      if (!allowedTypes.includes(type)) continue;
+      const addedBy = this.user?.name || this.user?.email || 'Unknown';
+      const timestamp = new Date().toISOString();
 
-    if (type === 'png' || type === 'jpg' || type === 'jpeg') {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        const base64 = e.target.result.split(',')[1];
-        const img = new Image();
-        img.onload = () => {
-          this.previewFile = {
+      if (type === 'png' || type === 'jpg' || type === 'jpeg') {
+        const reader = new FileReader();
+        reader.onload = (e: any) => {
+          const base64 = e.target.result.split(',')[1];
+          const img = new Image();
+          img.onload = () => {
+            const fileItem: FileItem = {
+              id: this.generateId(),
+              name: file.name,
+              type,
+              content: base64,
+              addedBy,
+              timestamp
+            };
+            this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
+            processed++;
+            if (processed === files.length) {
+              this.isUploading = false;
+              this.loadRepositories();
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e: any) => {
+          const fileItem: FileItem = {
+            id: this.generateId(),
             name: file.name,
             type,
-            base64,
-            width: img.width,
-            height: img.height,
+            content: e.target.result,
             addedBy,
             timestamp
           };
+          this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
+          processed++;
+          if (processed === files.length) {
+            this.isUploading = false;
+            this.loadRepositories();
+          }
         };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.previewFile = {
-          name: file.name,
-          type,
-          base64: e.target.result,
-          addedBy,
-          timestamp
-        };
-      };
-      reader.readAsText(file);
+        reader.readAsText(file);
+      }
     }
   }
 
   confirmPreviewUpload(): void {
     if (!this.previewFile || !this.selectedRepo || !this.selectedFolder) return;
+    this.isUploading = true;
     const fileItem: FileItem = {
       id: this.generateId(),
       name: this.previewFile.name,
       type: this.previewFile.type as any,
-      content: this.previewFile.type === 'png' ? this.previewFile.base64 : this.previewFile.base64,
+      content: this.previewFile.type === 'png' || this.previewFile.type === 'jpg' || this.previewFile.type === 'jpeg' ? this.previewFile.base64 : this.previewFile.base64,
       addedBy: this.previewFile.addedBy,
       timestamp: this.previewFile.timestamp
     };
@@ -1101,6 +1274,7 @@ export class DashboardComponent implements OnInit {
     this.loadRepositories();
     this.showDropzoneText = true;
     this.showFileFormFolderId = null;
+    setTimeout(() => { this.isUploading = false; }, 600); // Simulate loading
   }
   cancelPreviewUpload(): void {
     this.previewFile = null;
@@ -1124,6 +1298,8 @@ export class DashboardComponent implements OnInit {
       case 'png': return '🖼️';
       case 'jpg': return '🖼️';
       case 'jpeg': return '🖼️';
+      case 'txt': return '📄';
+      case 'mp4': return '🎬';
       default: return '📁';
     }
   }
@@ -1148,5 +1324,39 @@ export class DashboardComponent implements OnInit {
 
   getRandomStat(): number {
     return Math.floor(Math.random() * 100) + 1;
+  }
+
+  formatJson(content: string): string {
+    try {
+      return JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+      return content;
+    }
+  }
+  formatXml(content: string): string {
+    // Simple pretty print for XML (not perfect, but better than nothing)
+    try {
+      const PADDING = '  ';
+      const reg = /(>)(<)(\/*)/g;
+      let xml = content.replace(reg, '$1\r\n$2$3');
+      let pad = 0;
+      return xml.split('\r\n').map((node: string) => {
+        let indent = '';
+        if (node.match(/.+<\/.+>$/)) {
+          indent = PADDING.repeat(pad);
+        } else if (node.match(/^<\//)) {
+          pad = pad > 0 ? pad - 1 : 0;
+          indent = PADDING.repeat(pad);
+        } else if (node.match(/^<[^/].*>$/)) {
+          indent = PADDING.repeat(pad);
+          pad++;
+        } else {
+          indent = PADDING.repeat(pad);
+        }
+        return indent + node;
+      }).join('\n');
+    } catch {
+      return content;
+    }
   }
 }
