@@ -165,8 +165,8 @@ import { DomSanitizer } from '@angular/platform-browser';
         </main>
       </div>
     </div>
-  ',
-  styles: ['
+  `,
+  styles: [`
     .dashboard-container {
       min-height: 100vh;
       background: #2a3441;
