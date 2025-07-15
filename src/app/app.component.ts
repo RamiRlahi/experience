@@ -1,14 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { KeycloakService } from 'keycloak-angular';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { Router, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, Router } from '@angular/router';
-import { KeycloakAngularModule, KeycloakService, KeycloakEventType } from 'keycloak-angular';
-import { MatGridListModule } from '@angular/material/grid-list';
-import { MatButtonModule } from '@angular/material/button';
-import { MatListModule } from '@angular/material/list';
-import { MatCardModule } from '@angular/material/card';
-import { ClipboardModule, Clipboard } from '@angular/cdk/clipboard';
-import { HttpClientModule, HttpClient } from '@angular/common/http';
-import { RouterModule } from '@angular/router';
+import { ClipboardModule } from '@angular/cdk/clipboard';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -16,12 +14,8 @@ import { RouterModule } from '@angular/router';
   imports: [
     CommonModule,
     RouterOutlet,
-    MatGridListModule,
-    MatButtonModule,
-    MatListModule,
-    MatCardModule,
     ClipboardModule,
-    HttpClientModule
+    HttpClientModule,
   ],
   template: `
     <div class="app-container">
@@ -42,31 +36,69 @@ import { RouterModule } from '@angular/router';
     }
   `]
 })
-export class AppComponent implements OnInit {
-  title = 'keycloak-angular-example';
-  statusPanel: string = '';
+export class AppComponent implements OnInit, OnDestroy {
+  private keycloakService = inject(KeycloakService);
+  private clipboard = inject(Clipboard);
+  private httpClient = inject(HttpClient);
+  private router = inject(Router);
+  private destroy$ = new Subject<void>();
 
-  constructor(
-    public keycloakService: KeycloakService,
-    private clipboard: Clipboard,
-    private httpClient: HttpClient,
-    private router: Router
-  ) {
-    this.keycloakService.keycloakEvents$.subscribe({
-      next: (event) => {
-        if (event.type === KeycloakEventType.OnTokenExpired) {
-          this.keycloakService.updateToken(20);
+  statusPanel = '';
+
+  constructor() {
+    this.keycloakService.keycloakEvents$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (event: any) => { // Using 'any' to handle both legacy and new event types
+          // Handle both legacy and new event type formats
+          const eventType = event.type || event;
+          
+          if (eventType.toString().includes('TokenExpired')) {
+            this.handleTokenExpired();
+          } else if (eventType.toString().includes('AuthLogout')) {
+            this.statusPanel = 'User logged out';
+          } else if (eventType.toString().includes('AuthRefreshSuccess')) {
+            this.statusPanel = 'Session refreshed';
+          } else if (eventType.toString().includes('AuthRefreshError')) {
+            this.statusPanel = 'Session refresh failed';
+          }
+        },
+        error: (err) => {
+          console.error('Keycloak event error:', err);
+          this.statusPanel = 'Keycloak event error occurred';
         }
-      }
-    });
+      });
   }
 
-  ngOnInit(): void {
-    this.keycloakService.isLoggedIn().then((loggedIn) => {
-      if (loggedIn && (this.router.url === '/' || this.router.url === '/login' || this.router.url === '/register')) {
-        this.router.navigate(['/dashboard']);
-      }
-    });
+  private handleTokenExpired(): void {
+    this.keycloakService.updateToken(20)
+      .then(refreshed => {
+        this.statusPanel = refreshed 
+          ? 'Token was refreshed' 
+          : 'Token is still valid';
+      })
+      .catch(err => {
+        this.statusPanel = 'Failed to refresh token';
+        console.error('Token refresh error:', err);
+      });
+  }
+
+  // Rest of your component methods remain the same...
+  async ngOnInit(): Promise<void> {
+    const loggedIn = await this.keycloakService.isLoggedIn();
+    if (
+      loggedIn &&
+      (this.router.url === '/' ||
+        this.router.url === '/login' ||
+        this.router.url === '/register')
+    ) {
+      this.router.navigate(['/dashboard']);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   public login(): void {
@@ -87,7 +119,7 @@ export class AppComponent implements OnInit {
       this.clipboard.copy(token);
       this.statusPanel = 'Copied the token to clipboard';
     }).catch(() => {
-      this.statusPanel = 'Error occurred while copying';
+      this.statusPanel = 'Error occurred while copying token';
     });
   }
 
@@ -95,7 +127,7 @@ export class AppComponent implements OnInit {
     this.keycloakService.getToken().then(token => {
       this.statusPanel = this.toJWTString(token);
     }).catch(e => {
-      this.statusPanel = 'Error occurred while parsing. Check console logs.';
+      this.statusPanel = 'Error occurred while parsing token. Check console.';
       console.error(e);
     });
   }
@@ -115,12 +147,18 @@ export class AppComponent implements OnInit {
     }
   }
 
-  public async sendHttpRequest(): Promise<void> {
+  public sendHttpRequest(): void {
     this.httpClient.get('https://ab81a40b274c481694de52422e7c28c3.api.mockbin.io/')
-      .subscribe(res => {
-        console.log(res);
+      .subscribe({
+        next: res => {
+          console.log(res);
+          this.statusPanel = 'HTTP request succeeded. Check console.';
+        },
+        error: err => {
+          console.error(err);
+          this.statusPanel = 'HTTP request failed. See console.';
+        }
       });
-    this.statusPanel = "HTTP Request Sent. Check browser's network tab.";
   }
 
   public showRoles(): void {
