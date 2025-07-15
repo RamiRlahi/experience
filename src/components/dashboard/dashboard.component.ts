@@ -30,7 +30,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       <div class="dashboard-body">
         <aside class="sidebar">
         <button (click)="goToDashboard()" class="card-button">Home</button>
-        <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="card-button">Shared with me</button>
+        <button (click)="goToProfile()" class="card-button">Profile</button>
           <h2>Repositories</h2>
           <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="add-btn">Add Repo</button>
           <form *ngIf="showRepoForm" (ngSubmit)="addRepository()" class="repo-form">
