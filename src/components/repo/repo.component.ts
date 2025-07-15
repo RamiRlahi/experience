@@ -1,3 +1,4 @@
+/*
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -170,7 +171,7 @@ Drag & drop a file here or click + to add to '{{selectedFolder.name}}'
       <p>You have successfully logged in to your account.</p>
     </div>
     
-    
+
     <!-- Floating file preview -->
     <div *ngIf="hoveredFile" class="file-hover-preview" [style.left.px]="hoverX" [style.top.px]="hoverY">
       <ng-container [ngSwitch]="hoveredFile.type">
@@ -235,4 +236,4 @@ Drag & drop a file here or click + to add to '{{selectedFolder.name}}'
       </div>
     </div>
   </ng-container>
-</main>'
+</main>' */
