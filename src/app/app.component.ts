@@ -1,32 +1,28 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { KeycloakService } from 'keycloak-angular';
-import { Clipboard } from '@angular/cdk/clipboard';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { Router, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ClipboardModule } from '@angular/cdk/clipboard';
-import { Subject } from 'rxjs';
+import { Router, RouterOutlet } from '@angular/router';
+import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
+import { HttpClient } from '@angular/common/http';
+import { KeycloakService } from 'keycloak-angular';
+import { Subject, BehaviorSubject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterOutlet,
-    ClipboardModule,
-    HttpClientModule,
-  ],
+  imports: [CommonModule, RouterOutlet, ClipboardModule],
   template: `
-    <div class="app-container">
-      <router-outlet></router-outlet>
-      <div class="status-panel" *ngIf="statusPanel">{{ statusPanel }}</div>
+    <div *ngIf="!isLoggedIn.value; else loggedIn">
+      <button (click)="login()">Login</button>
     </div>
+    <ng-template #loggedIn>
+      <p>Welcome!</p>
+      <button (click)="logout()">Logout</button>
+    </ng-template>
+    <div class="status-panel">{{ statusPanel }}</div>
   `,
   styles: [`
-    .app-container {
-      min-height: 100vh;
-    }
+    .app-container { min-height: 100vh; }
     .status-panel {
       margin: 1rem;
       padding: 1rem;
@@ -43,55 +39,37 @@ export class AppComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private destroy$ = new Subject<void>();
 
-  statusPanel = '';
+  public isLoggedIn = new BehaviorSubject<boolean>(false);
+  public statusPanel = '';
 
   constructor() {
     this.keycloakService.keycloakEvents$
       .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (event: any) => { // Using 'any' to handle both legacy and new event types
-          // Handle both legacy and new event type formats
-          const eventType = event.type || event;
-          
-          if (eventType.toString().includes('TokenExpired')) {
+      .subscribe(event => {
+        const eventType = event.type as unknown as string;
+        switch (eventType) {
+          case 'OnTokenExpired':
             this.handleTokenExpired();
-          } else if (eventType.toString().includes('AuthLogout')) {
+            break;
+          case 'OnAuthLogout':
             this.statusPanel = 'User logged out';
-          } else if (eventType.toString().includes('AuthRefreshSuccess')) {
+            this.isLoggedIn.next(false);
+            break;
+          case 'OnAuthRefreshSuccess':
             this.statusPanel = 'Session refreshed';
-          } else if (eventType.toString().includes('AuthRefreshError')) {
+            break;
+          case 'OnAuthRefreshError':
             this.statusPanel = 'Session refresh failed';
-          }
-        },
-        error: (err) => {
-          console.error('Keycloak event error:', err);
-          this.statusPanel = 'Keycloak event error occurred';
+            break;
         }
       });
   }
 
-  private handleTokenExpired(): void {
-    this.keycloakService.updateToken(20)
-      .then(refreshed => {
-        this.statusPanel = refreshed 
-          ? 'Token was refreshed' 
-          : 'Token is still valid';
-      })
-      .catch(err => {
-        this.statusPanel = 'Failed to refresh token';
-        console.error('Token refresh error:', err);
-      });
-  }
-
-  // Rest of your component methods remain the same...
   async ngOnInit(): Promise<void> {
     const loggedIn = await this.keycloakService.isLoggedIn();
-    if (
-      loggedIn &&
-      (this.router.url === '/' ||
-        this.router.url === '/login' ||
-        this.router.url === '/register')
-    ) {
+    this.isLoggedIn.next(loggedIn);
+
+    if (loggedIn && ['/', '/login', '/register'].includes(this.router.url)) {
       this.router.navigate(['/dashboard']);
     }
   }
@@ -109,17 +87,19 @@ export class AppComponent implements OnInit, OnDestroy {
     this.keycloakService.logout(window.location.origin);
   }
 
-  public async isLoggedIn(): Promise<void> {
+  public async checkLoginStatus(): Promise<void> {
     const loggedIn = await this.keycloakService.isLoggedIn();
     this.statusPanel = 'Is Logged In: ' + loggedIn;
+    this.isLoggedIn.next(loggedIn);
   }
 
   public copyAccessTokenToClipboard(): void {
     this.keycloakService.getToken().then(token => {
       this.clipboard.copy(token);
       this.statusPanel = 'Copied the token to clipboard';
-    }).catch(() => {
+    }).catch(e => {
       this.statusPanel = 'Error occurred while copying token';
+      console.error(e);
     });
   }
 
@@ -132,7 +112,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  public isTokenExpired(): void {
+  public async isTokenExpired(): Promise<void> {
     const expired = this.keycloakService.isTokenExpired(10);
     this.statusPanel = 'Token expired: ' + expired;
   }
@@ -161,13 +141,24 @@ export class AppComponent implements OnInit, OnDestroy {
       });
   }
 
-  public showRoles(): void {
-    const roles = this.keycloakService.getUserRoles();
+  public async showRoles(): Promise<void> {
+    const roles = await this.keycloakService.getUserRoles();
     this.statusPanel = roles.length > 0 ? roles.join(', ') : 'No roles found.';
   }
 
   public resetPanel(): void {
     this.statusPanel = '';
+  }
+
+  private handleTokenExpired(): void {
+    this.keycloakService.updateToken(20)
+      .then(refreshed => {
+        this.statusPanel = refreshed ? 'Token was refreshed' : 'Token is still valid';
+      })
+      .catch(err => {
+        this.statusPanel = 'Failed to refresh token';
+        console.error('Token refresh error:', err);
+      });
   }
 
   private toJWTString(token: string): string {

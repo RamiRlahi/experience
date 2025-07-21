@@ -1,35 +1,28 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
-import { importProvidersFrom } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
 import { AppComponent } from './app/app.component';
+import { provideRouter } from '@angular/router';
 import { routes } from './app/app.routes';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { importProvidersFrom } from '@angular/core';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { KeycloakAngularModule, KeycloakService } from 'keycloak-angular';
+import { initializeKeycloak } from './app/keycloak-init';
+import { APP_INITIALIZER } from '@angular/core';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
-import { provideKeycloak } from 'keycloak-angular';
 
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(routes),
-    provideHttpClient(),
-    importProvidersFrom(ReactiveFormsModule),
+    importProvidersFrom(HttpClientModule, KeycloakAngularModule),
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeKeycloak,
+      multi: true,
+      deps: [KeycloakService],
+    },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
       multi: true,
-    },
-    provideKeycloak({
-      config: {
-        url: 'http://localhost:8080/auth',
-        realm: 'myrealm',
-        clientId: 'angular-client',
-      },
-      initOptions: {
-        onLoad: 'check-sso',
-        checkLoginIframe: true,
-        silentCheckSsoRedirectUri: window.location.origin + '/assets/silent-check-sso.html',
-      },
-    }),
+    }
   ],
-});
+}).catch(err => console.error(err));

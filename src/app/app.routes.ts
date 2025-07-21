@@ -4,6 +4,12 @@ import { RegisterComponent } from '../components/register/register.component';
 import { DashboardComponent } from '../components/dashboard/dashboard.component';
 import { ProfileComponent } from '../components/profile/profile.component';
 import { authGuard } from '../guards/auth.guard';
+import { keycloak } from './keycloak-init';
+
+
+if (!keycloak.authenticated) {
+  keycloak.login();
+}
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
