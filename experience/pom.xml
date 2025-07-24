@@ -1,0 +1,120 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>content-management-service</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <properties>
+        <boat-maven-plugin.version>0.17.31</boat-maven-plugin.version>
+        <codegen.angularVersion>10.1.0</codegen.angularVersion>
+        <codegen.npmPackage.name>@mybiat</codegen.npmPackage.name>
+        <codegen.directory>${project.build.directory}/generated-sources/openapi</codegen.directory>
+        <codegen.npmPackage.version>1.0.0</codegen.npmPackage.version>
+        <codegen.generateMocks>true</codegen.generateMocks>
+        <codegen.serviceSuffix>HttpService</codegen.serviceSuffix>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.backbase.oss</groupId>
+                <artifactId>boat-maven-plugin</artifactId>
+                <version>${boat-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-api-code</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <inputSpec>${project.basedir}/contentservices-client-api-v3.1.0.yaml</inputSpec>
+                            <output>${project.build.directory}/generated-sources/api</output>
+                            <generatorName>spring</generatorName>
+                            <configOptions>
+                                <library>spring-boot</library>
+                                <apiPackage>com.example.my.service.api.interfaces</apiPackage>
+                                <modelPackage>com.example.my.service.models</modelPackage>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <dateLibrary>java8</dateLibrary>
+                                <interfaceOnly>true</interfaceOnly>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                                <useBeanValidation>true</useBeanValidation>
+                                <useTags>true</useTags>
+                                <java8>true</java8>
+                                <useOptional>false</useOptional>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <repositories>
+        <repository>
+            <id>backbase-public</id>
+            <url>https://repo.backbase.com/public</url>
+        </repository>
+         <repository>
+                    <id>jitpack.io</id>
+                    <url>https://jitpack.io</url>
+                </repository>
+
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>backbase-public</id>
+            <url>https://repo.backbase.com/public</url>
+        </pluginRepository>
+        <pluginRepository>
+                    <id>jitpack.io</id>
+                    <url>https://jitpack.io</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                </pluginRepository>
+    </pluginRepositories>
+    <dependencies>
+  <!-- Spring Boot Starter Web (includes Spring, Jackson, validation, etc.) -->
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+    <version>2.7.18</version>
+  </dependency>
+
+  <!-- Swagger/OpenAPI Annotations -->
+  <dependency>
+    <groupId>io.swagger.core.v3</groupId>
+    <artifactId>swagger-annotations</artifactId>
+    <version>2.2.20</version>
+  </dependency>
+
+  <!-- Jackson Databind (for JSON serialization/deserialization) -->
+  <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.13.5</version>
+  </dependency>
+
+  <!-- OpenAPI tools nullable support -->
+  <dependency>
+    <groupId>org.openapitools</groupId>
+    <artifactId>jackson-databind-nullable</artifactId>
+    <version>0.2.6</version>
+  </dependency>
+
+  <!-- Javax Validation API -->
+  <dependency>
+    <groupId>javax.validation</groupId>
+    <artifactId>validation-api</artifactId>
+    <version>2.0.1.Final</version>
+  </dependency>
+
+  <!-- Javax Annotation API -->
+  <dependency>
+    <groupId>javax.annotation</groupId>
+    <artifactId>javax.annotation-api</artifactId>
+    <version>1.3.2</version>
+  </dependency>
+</dependencies>
+</project> 
