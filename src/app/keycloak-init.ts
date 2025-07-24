@@ -1,26 +1,17 @@
-import Keycloak from 'keycloak-js';
+import { KeycloakService } from 'keycloak-angular';
 
-const keycloak = new Keycloak({
-  url: 'http://localhost:8080/auth',
-  realm: 'myrealm',
-  clientId: 'angular-client',
-});
-
-export function initializeKeycloak(): () => Promise<boolean> {
+export function initializeKeycloak(keycloak: KeycloakService) {
   return () =>
-    keycloak
-      .init({
-        onLoad: 'login-required',
-        checkLoginIframe: false,
-      })
-      .then((authenticated: boolean) => {
-        console.log('[Keycloak] Authenticated:', authenticated);
-        return true;
-      })
-      .catch((err: unknown) => {
-        console.error('[Keycloak] Initialization failed', err);
-        return false;
-      });
+    keycloak.init({
+      config: {
+        url: 'http://localhost:8080/auth',
+        realm: 'myrealm',
+        clientId: 'angular-client',
+      },
+      initOptions: {
+        onLoad: 'login-required',     // or 'check-sso'
+        checkLoginIframe: true,
+      },
+      bearerExcludedUrls: ['/assets'], // Exclude static files from being intercepted
+    });
 }
-
-export { keycloak };

@@ -10,7 +10,7 @@ import { takeUntil } from 'rxjs/operators';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, ClipboardModule],
+  imports: [CommonModule, ClipboardModule],
   template: `
     <div *ngIf="!isLoggedIn.value; else loggedIn">
       <button (click)="login()">Login</button>
