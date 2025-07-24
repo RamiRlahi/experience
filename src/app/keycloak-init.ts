@@ -9,9 +9,10 @@ export function initializeKeycloak(keycloak: KeycloakService) {
         clientId: 'angular-client',
       },
       initOptions: {
-        onLoad: 'login-required',     // or 'check-sso'
-        checkLoginIframe: true,
+        onLoad: 'check-sso',     
+        silentCheckSsoRedirectUri: window.location.origin + '/assets/silent-check-sso.html',
+        checkLoginIframe: false,
       },
-      bearerExcludedUrls: ['/assets'], // Exclude static files from being intercepted
+      
     });
 }

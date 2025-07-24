@@ -11,6 +11,7 @@ declare module 'keycloak-js' {
     }
   
     export default class Keycloak {
+      tokenParsed: boolean | undefined;
       constructor(config: KeycloakConfig);
       token?: string;
       authenticated?: boolean;
