@@ -99,10 +99,9 @@ import { Repository, Folder, FileItem } from '../../models/content.model';
   styles: [`
     .profile-container {
       min-height: 100vh;
-      background: #2a3441;
+      background: #eaf1fb;
       padding: 2rem 1rem;
     }
-
     .profile-header {
       max-width: 800px;
       margin: 0 auto 2rem auto;
@@ -110,10 +109,9 @@ import { Repository, Folder, FileItem } from '../../models/content.model';
       align-items: center;
       gap: 1rem;
     }
-
     .back-button {
-      background: #102542;
-      color: white;
+      background: #1a367b;
+      color: #fff;
       border: none;
       padding: 0.75rem 1rem;
       border-radius: 8px;
@@ -121,42 +119,37 @@ import { Repository, Folder, FileItem } from '../../models/content.model';
       font-weight: 500;
       transition: background-color 0.2s ease;
     }
-
     .back-button:hover {
-      background: #0f1f35;
+      background: #1560bd;
     }
-
     .profile-header h1 {
       margin: 0;
-      color: white;
+      color: #1a367b;
       font-size: 2rem;
       font-weight: 600;
     }
-
     .profile-content {
       max-width: 800px;
       margin: 0 auto;
     }
-
     .profile-card {
-      background: #3a4651;
+      background: #fff;
       border-radius: 12px;
       padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(21, 96, 189, 0.08);
       margin-bottom: 2rem;
       text-align: center;
+      color: #1a367b;
     }
-
     .profile-avatar {
       margin-bottom: 1.5rem;
     }
-
     .avatar-placeholder {
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
-      color: white;
+      background: #1a367b;
+      color: #fff;
       font-size: 3rem;
       font-weight: 600;
       display: flex;
@@ -164,150 +157,131 @@ import { Repository, Folder, FileItem } from '../../models/content.model';
       justify-content: center;
       margin: 0 auto;
     }
-
     .profile-info h2 {
-      color: white;
+      color: #1a367b;
       margin: 0 0 0.5rem 0;
       font-size: 1.75rem;
     }
-
     .user-email {
-      color: #102542;
+      color: #1560bd;
       font-size: 1.1rem;
       margin: 0 0 0.5rem 0;
     }
-
     .member-since {
-      color: rgba(255, 255, 255, 0.7);
+      color: #1560bd;
       margin: 0 0 1.5rem 0;
     }
-
     .profile-stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 1rem;
       margin-bottom: 2rem;
     }
-
     .stat-item {
       padding: 1rem;
-      background: #2a3441;
+      background: #eaf1fb;
       border-radius: 8px;
+      color: #1a367b;
     }
-
     .stat-value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #102542;
+      color: #1560bd;
       margin-bottom: 0.25rem;
     }
-
     .stat-label {
-      color: rgba(255, 255, 255, 0.7);
+      color: #1560bd;
       font-size: 0.85rem;
     }
-
     .profile-actions {
       display: flex;
       gap: 1rem;
       justify-content: center;
     }
-
     .edit-button, .settings-button {
       padding: 0.75rem 1.5rem;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, background 0.2s;
     }
-
     .edit-button {
-      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
-      color: white;
+      background: #1a367b;
+      color: #fff;
       border: none;
     }
-
     .settings-button {
-      background: transparent;
-      color: #102542;
-      border: 2px solid #102542;
+      background: #fff;
+      color: #1a367b;
+      border: 2px solid #1a367b;
     }
-
     .edit-button:hover, .settings-button:hover {
+      background: #1560bd;
+      color: #fff;
       transform: translateY(-1px);
     }
-
     .profile-sections {
       display: grid;
       gap: 2rem;
     }
-
     .section-card {
-      background: #3a4651;
+      background: #eaf1fb;
       border-radius: 12px;
       padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(21, 96, 189, 0.08);
+      color: #1a367b;
     }
-
     .section-card h3 {
-      color: white;
+      color: #1a367b;
       margin: 0 0 1.5rem 0;
       font-size: 1.25rem;
     }
-
     .info-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 1.5rem;
     }
-
     .info-item {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
     }
-
     .info-item label {
-      color: rgba(255, 255, 255, 0.7);
+      color: #1560bd;
       font-size: 0.9rem;
       font-weight: 500;
     }
-
     .info-item span {
-      color: white;
+      color: #1a367b;
       font-weight: 600;
     }
-
     .security-items {
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
     }
-
     .security-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 1rem;
-      background: #2a3441;
+      background: #eaf1fb;
       border-radius: 8px;
+      color: #1a367b;
     }
-
     .security-info h4 {
-      color: white;
+      color: #1a367b;
       margin: 0 0 0.25rem 0;
       font-size: 1rem;
     }
-
     .security-info p {
-      color: rgba(255, 255, 255, 0.7);
+      color: #1560bd;
       margin: 0;
       font-size: 0.9rem;
     }
-
     .security-button {
-      background: #102542;
-      color: white;
+      background: #1a367b;
+      color: #fff;
       border: none;
       padding: 0.5rem 1rem;
       border-radius: 6px;
@@ -315,27 +289,22 @@ import { Repository, Folder, FileItem } from '../../models/content.model';
       font-weight: 500;
       transition: background-color 0.2s ease;
     }
-
     .security-button:hover {
-      background: #0f1f35;
+      background: #1560bd;
     }
-
     @media (max-width: 768px) {
       .profile-header {
         flex-direction: column;
         align-items: flex-start;
       }
-
       .profile-actions {
         flex-direction: column;
       }
-
       .security-item {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
       }
-
       .info-grid {
         grid-template-columns: 1fr;
       }

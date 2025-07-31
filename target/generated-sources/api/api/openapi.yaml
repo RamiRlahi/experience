@@ -1,0 +1,3997 @@
+openapi: 3.0.3
+info:
+  description: Manage content items through multiple repositories.
+  title: Content Services client
+  version: 3.1.0
+  x-icon: upload_file
+servers:
+- url: http://backbase.com/contentservices-public
+tags:
+- description: Handles operations on repositories
+  name: RepositoryManagement
+- description: Handles export of content bundles
+  name: ContentExport
+- description: Handles import of content bundles
+  name: ContentImport
+- description: Handles import of resource bundles
+  name: ResourceImport
+- description: Handles content stream fetch operations
+  name: ContentStream
+- description: Handles content stream fetch operations using path to content
+  name: ContentStreamByPath
+- description: Handles operations on content object metadata
+  name: ContentManagement
+- description: Handles content duplication
+  name: ContentDuplication
+- description: Handles search operations on content metadata
+  name: ContentSearch
+- description: Handles operation on Retention policies
+  name: RetentionPoliciesManagement
+- description: Handles generation of signed url
+  name: SignedUrl
+paths:
+  /client-api/repositories/{repositoryId}:
+    delete:
+      description: "Deletes a repository. If an external storage is configured for\
+        \ the repository, then behavior differs based on exact implementation of external\
+        \ storage connector. By default (in Backbase C3 implementations), contents\
+        \ remain in the external storage and just the database reference will be removed."
+      operationId: deleteRepository
+      parameters:
+      - description: The Identifier of the Repository to process.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "204":
+          description: Repository was successfully deleted.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RepositoryManagement
+      x-accepts: application/json
+    description: "Repository object endpoint. It is the replacement of /bbp/repositories/{repositoryId}\
+      \ endpoint."
+    get:
+      description: Returns a repository definition.
+      operationId: getRepository
+      parameters:
+      - description: The Identifier of the Repository to process.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+          description: Repository successfully returned.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RepositoryManagement
+      x-accepts: application/json
+  /client-api/repositories:
+    description: Repository objects endpoint. It is the replacement of /bbp/repositories
+      endpoint.
+    post:
+      description: Creates repositories.
+      operationId: createRepositories
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/RepositoriesExample'
+            schema:
+              $ref: '#/components/schemas/Repositories'
+        description: A list of repositories to be created.
+      responses:
+        "201":
+          description: Repository are successfully created.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Conflict
+      tags:
+      - RepositoryManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/repositories/{srcRepositoryId}/copy/{dstRepositoryId}:
+    description: "Copy repository content endpoint. It is the replacement of /bbp/repositories/copy/{srcRepository}/{dstRepository}\
+      \ endpoint."
+    post:
+      description: Copies the content of the source repository to the destination
+        repository.
+      operationId: copyRepository
+      parameters:
+      - description: Repository Id to copy from
+        explode: false
+        in: path
+        name: srcRepositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: Repository Id to copy to
+        explode: false
+        in: path
+        name: dstRepositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "200":
+          description: Content successfully copied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RepositoryManagement
+      x-accepts: application/json
+  /client-api/resources/import:
+    post:
+      description: Import resource provided as a zipped bundle to resourceRepository.
+      operationId: importResourceBundle
+      parameters:
+      - description: "Set the rootPath to import the bundle. Allowed regex is [a-zA-Z0-9-_]+.\
+          \ Bundle will be imported to contextRoot if rootPath is not specified."
+        explode: true
+        in: query
+        name: rootPath
+        required: false
+        schema:
+          default: contextRoot
+          type: string
+          example: null
+        style: form
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/importResourceBundle_request'
+        description: Zipped bundle of content for import.
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+              - 1
+              - 2
+              - 3
+              - 4
+              schema:
+                $ref: '#/components/schemas/ResourcesImportResponse'
+          description: Import has been done successfully. Return array of imported
+            items ids.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+      tags:
+      - ResourceImport
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+    summary: Import Resource Bundle to resourceRepository. it is the replacement of
+      /admin/importResourceBundle endpoint.
+  /client-api/repositories/{repositoryId}/import:
+    description: "Import a ContentBundle to public repositories. It is the replacement\
+      \ of /admin/import/{repository}, /admin/importRepository/{repository}, /admin/importSharedContent\
+      \ and /api/content/import endpoints."
+    post:
+      operationId: importContent
+      parameters:
+      - description: Repository to import to. The repository should already exist
+          if cr parameter is false.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: The path of the parent folder where to import the bundle.
+        explode: true
+        in: query
+        name: parentPath
+        required: false
+        schema:
+          default: /
+          pattern: ^/(?:.+/?)*$
+          type: string
+          example: null
+        style: form
+      - description: "Create Path. Only considered if path is provided, allows the\
+          \ full path to be created if not already there."
+        explode: true
+        in: query
+        name: createPath
+        required: false
+        schema:
+          default: false
+          type: boolean
+          example: null
+        style: form
+      - description: "If any file is found at one or more locations specified in the\
+          \ ContentBundle, they will be overwritten."
+        explode: true
+        in: query
+        name: overwrite
+        required: false
+        schema:
+          default: true
+          type: boolean
+          example: null
+        style: form
+      - description: Create repository. Indicates if repository should be created.
+        explode: true
+        in: query
+        name: createRepository
+        required: false
+        schema:
+          default: false
+          type: boolean
+          example: null
+        style: form
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/importResourceBundle_request'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemImportResults'
+          description: Import has been done successfully.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentImport
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /client-api/repositories/{repositoryId}/export:
+    post:
+      description: Returns a zip containing a full repository export or export of
+        individual content items by specified ids.
+      operationId: writeExportContentBundleOnClientCall
+      parameters:
+      - description: Repository ID from which to take export from
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: "optional metadata to include in the export of individual items.\
+          \ If empty, export no metadata; if null, export all."
+        explode: true
+        in: query
+        name: optionalMeta
+        required: false
+        schema:
+          items:
+            type: string
+            example: null
+          type: array
+          example: null
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              items:
+                type: string
+                example: null
+              type: array
+              example: null
+        description: "List of content ids to export. If empty list is provided, only\
+          \ bare repository.xml is exported with no content. If body is null, full\
+          \ repository export is performed."
+        required: false
+      responses:
+        "200":
+          content:
+            application/zip:
+              schema:
+                format: binary
+                type: string
+                example: null
+          description: Export has been done successfully.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Internal server error
+      tags:
+      - ContentExport
+      x-content-type: application/json
+      x-accepts: application/json
+    summary: "Export of full repository or individual content items by specified ids.\
+      \ It is the replacement of /admin/export/{repositoryId}, /admin/exportRepository/{repositoryId}\
+      \ and /api/content/export endpoints."
+  /client-api/contentstream/{repositoryId}/{objectPath}:
+    get:
+      description: Gets content stream of an object by path.
+      operationId: renderContentStreamByPathClientApi
+      parameters:
+      - description: Repository ID of the object to retrieve content stream of.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: Path to retrieve the content stream of.
+        explode: false
+        in: path
+        name: objectPath
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: Optional version of the content to be retrieved. Returns latest
+          version when is not set.
+        explode: true
+        in: query
+        name: versionLabel
+        required: false
+        schema:
+          type: string
+          example: null
+        style: form
+      - description: Determines whether content should be downloaded (if true) or
+          rendered (if false) in browser. Default value is false.
+        explode: true
+        in: query
+        name: download
+        required: false
+        schema:
+          type: boolean
+          example: null
+        style: form
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+                example: null
+          description: Object is found. Content stream is returned.
+        "304":
+          description: Object is found. Content stream shoud be taken from cache.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentStreamByPath
+      x-accepts: application/json
+    summary: "Content stream of an object by its path within a repository. it is the\
+      \ replacement of /api/contentstream-id/{repositoryId}/{objectPath} endpoint."
+  /client-api/contentstream-id/{repositoryId}/{objectId}:
+    get:
+      description: Gets content stream of an object by object id.
+      operationId: renderContentStreamById
+      parameters:
+      - description: Repository ID of the object to retrieve content stream of.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: Object ID to retrieve content stream of.
+        explode: false
+        in: path
+        name: objectId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      - description: Determines whether content should be downloaded (if true) or
+          rendered (if false) in browser. Default value is false.
+        explode: true
+        in: query
+        name: download
+        required: false
+        schema:
+          type: boolean
+          example: null
+        style: form
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+                example: null
+          description: Object is found. Content stream is returned.
+        "304":
+          description: Object is found. Content stream shoud be taken from cache.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentStream
+      x-accepts: application/json
+    summary: "Content stream of an object from a given repository. it is the replacement\
+      \ of /api/contentstream-id/{repositoryId}/{objectId} endpoint."
+  /client-api/contentstream-relationship/{relationshipId}:
+    get:
+      description: Gets content stream of a relationship's target object by relationship
+        id.
+      operationId: renderContentStreamByRelationshipId
+      parameters:
+      - description: Relationship ID of the target object.
+        explode: false
+        in: path
+        name: relationshipId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+                example: null
+          description: Object is found. Content stream is returned.
+        "304":
+          description: Object is found. Content stream shoud be taken from cache.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentStream
+      x-accepts: application/json
+    summary: "Content stream of the target relationship object. it is the replacement\
+      \ of /api/contentstream-relationship/{relationshipId} endpoint."
+  /client-api/content/query:
+    description: Content query. It is the replacement of /api/content/query endpoint.
+    post:
+      description: Performs a content query.
+      operationId: queryContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/QueryRequestExample'
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        description: Performs a content query.
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/QueryResponseExample'
+              schema:
+                $ref: '#/components/schemas/Documents'
+          description: Query result.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/search:
+    description: Content metadata search. It is the replacement of /api/content/search
+      endpoint.
+    post:
+      description: Performs search in content metadata.
+      operationId: searchContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/SearchRequestExample'
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/QueryResponseExample'
+              schema:
+                $ref: '#/components/schemas/Documents'
+          description: Search result.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+      tags:
+      - ContentSearch
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/save:
+    description: Documents save. It is the replacement of /api/content/save endpoint.
+    post:
+      description: Performs creation or update of documents.
+      operationId: saveContent
+      parameters:
+      - description: Determines whether during content update properties from save
+          request should be also updated (if true). Default value is false.
+        explode: true
+        in: query
+        name: updateProperties
+        required: false
+        schema:
+          default: false
+          type: boolean
+          example: null
+        style: form
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/SaveRequestExample'
+            schema:
+              $ref: '#/components/schemas/DocumentsToSave'
+        description: Performs creation or update of documents.
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/SaveResponseExample'
+              schema:
+                $ref: '#/components/schemas/Documents'
+          description: Documents successfully created and/or updated.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: File threat detected
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/remove:
+    description: Documents delete query. It is the replacement of /api/content/remove
+      endpoint.
+    post:
+      description: Performs deletion of documents by their ids.
+      operationId: removeContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/RemoveRequestExample'
+            schema:
+              $ref: '#/components/schemas/RemoveRequest'
+        description: Performs deletion of documents by their ids.
+      responses:
+        "204":
+          description: Documents successfully deleted.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Conflict
+      tags:
+      - ContentManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/move:
+    description: Documents move request. It is the replacement of /api/content/move
+      endpoint.
+    post:
+      description: Performs moving of documents.
+      operationId: moveContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/MoveRequestExample'
+            schema:
+              $ref: '#/components/schemas/DocumentsToMove'
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/QueryResponseExample'
+              schema:
+                $ref: '#/components/schemas/Documents'
+          description: Documents successfully moved.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/revert:
+    description: Documents revert versions query. It is the replacement of /api/content/revert
+      endpoint.
+    post:
+      description: Performs documents reverting to specific versions.
+      operationId: revertContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/RevertRequestExample'
+            schema:
+              $ref: '#/components/schemas/ItemsToRevert'
+        description: Performs documents reverting to specific versions.
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/QueryResponseExample'
+              schema:
+                $ref: '#/components/schemas/Documents'
+          description: Documents successfully reverted to the specified versions.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/duplicate:
+    description: Documents duplication. it is the replacement of /api/content/duplicate
+      endpoint.
+    post:
+      description: Performs duplication of documents.
+      operationId: duplicateContent
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/DuplicateRequestExample'
+            schema:
+              $ref: '#/components/schemas/DuplicateRequest'
+        description: Duplicate content request.
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/DuplicateResponseExample'
+              schema:
+                $ref: '#/components/schemas/DuplicateResponse'
+          description: Documents successfully duplicated.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Conflict
+      tags:
+      - ContentDuplication
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/content/signedUrl:
+    description: Create document signed url.
+    post:
+      description: Create signed url for document.
+      operationId: createSignedUrl
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/SignedUrlRequestExample'
+            schema:
+              $ref: '#/components/schemas/SignedUrlRequest'
+        description: Create signed url request.
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/SignedUrlResponseExample'
+              schema:
+                $ref: '#/components/schemas/SignedUrlResponse'
+          description: Signed URL generated successfully.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - SignedUrl
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/repositories/{repositoryId}/upload:
+    description: Uploading content to specified repository. it is the replacement
+      of /upload/form endpoint.
+    post:
+      description: Performs uploading of content
+      operationId: handleContentUpload
+      parameters:
+      - description: ID of the repository to save and/or update uploaded content items.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUpload'
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/UploadResponseExample'
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Document successfully created and/or updated.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: File threat detected
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - ContentUpload
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /client-api/repositories/{repositoryId}/retention-policies:
+    delete:
+      description: detach all Retention Policies of a given repositoryId.
+      operationId: detachRetentionPolicies
+      parameters:
+      - description: The Identifier of the Repository to process.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              example:
+              - 324234-23423
+              - 324234-23424
+              - 324234-234235
+              - 324234-2342999
+              items:
+                type: string
+                example: null
+              type: array
+              uniqueItems: true
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPoliciesExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicies'
+          description: Retention Policies were successfully detached.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-content-type: application/json
+      x-accepts: application/json
+    description: Retention policies for a Repository.
+    get:
+      description: Returns a list of retention policies for a reposity.
+      operationId: getRetentionPoliciesForRepository
+      parameters:
+      - description: The Identifier of the Repository to process.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPoliciesExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicies'
+          description: Retention Policies successfully returned.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-accepts: application/json
+    post:
+      description: Returns a list of retention policies added to the given repository.
+      operationId: addRetentionPoliciesForRepository
+      parameters:
+      - description: The Identifier of the Repository to process.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              example:
+              - 324234-23423
+              - 324234-23424
+              - 324234-234235
+              - 324234-2342999
+              items:
+                type: string
+                example: null
+              type: array
+              uniqueItems: true
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPoliciesExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicies'
+          description: Retention Policies successfully addded to the reposity.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/retention-policies:
+    description: Retention Policy management endpoints
+    get:
+      description: Returns all the existent retention policies
+      operationId: getAllRetentionPolicies
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPoliciesExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicies'
+          description: Returns all the retention policies found.
+      tags:
+      - RetentionPoliciesManagement
+      x-accepts: application/json
+    post:
+      description: Creates a retention policy.
+      operationId: createRetentionPolicy
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/CreateRetentionPolicyExample'
+            schema:
+              $ref: '#/components/schemas/RetentionPolicy'
+        description: Retention Policy to create.
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPolicyExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+          description: Retention poolicy successfully created.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Conflict
+      tags:
+      - RetentionPoliciesManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/retention-policies/{policyId}:
+    delete:
+      description: Deletes a retention policy.
+      operationId: deleteRetentionPolicy
+      parameters:
+      - description: The Identifier of the Retention policy to process.
+        explode: false
+        in: path
+        name: policyId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "204":
+          description: Retention Policy was successfully deleted.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-accepts: application/json
+    description: Endpoint for retention policies management.
+    get:
+      description: Returns the requested retention policy.
+      operationId: getRetentionPolicy
+      parameters:
+      - description: The Identifier of the Retention policy to process.
+        explode: false
+        in: path
+        name: policyId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPolicyExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+          description: Retention Policy successfully returned.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-accepts: application/json
+    put:
+      description: Updates a retention policy.
+      operationId: updateRetentionPolicyforRepository
+      parameters:
+      - description: The Identifier of the Retention policy to process.
+        explode: false
+        in: path
+        name: policyId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            example:
+              $ref: '#/components/examples/RetentionPolicyExample'
+            schema:
+              $ref: '#/components/schemas/RetentionPolicy'
+        description: Request Policy to update.
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/RetentionPolicyExample'
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+          description: Retention poolicy successfully updated.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Conflict
+      tags:
+      - RetentionPoliciesManagement
+      x-content-type: application/json
+      x-accepts: application/json
+  /client-api/retention-policies/run/{repositoryId}:
+    description: Trigger evaluation of any retention policy associated with a given
+      repository definition.
+    post:
+      description: Runs the given retention policies to the specified repositoryId.
+      operationId: runRetentionPolicy
+      parameters:
+      - description: The Identifier of the repository to use for the retention policies
+          check.
+        explode: false
+        in: path
+        name: repositoryId
+        required: true
+        schema:
+          type: string
+          example: null
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              example:
+              - 324234-23423
+              - 324234-23424
+              - 324234-234235
+              - 324234-2342999
+              items:
+                type: string
+                example: null
+              type: array
+              uniqueItems: true
+        description: Retention policies to run on this repository.
+        required: false
+      responses:
+        "202":
+          content:
+            text/plain:
+              schema:
+                example: Retention Policies check successfully triggered.
+                type: string
+          description: Retention Policies check successfully triggered.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Invalid request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusMessage'
+          description: Object not found
+      tags:
+      - RetentionPoliciesManagement
+      x-content-type: application/json
+      x-accepts: application/json
+components:
+  examples:
+    MoveRequestExample:
+      summary: MoveRequestExample
+      value:
+        ids:
+        - 6974aab7-a92f-4dce-a783-2b8434c8226a
+        loadProperties: true
+        paths:
+        - /
+        loadVersions: true
+        loadChildren: true
+        repositories:
+        - example
+    QueryRequestExample:
+      summary: QueryRequestExample
+      value:
+        ids:
+        - 6974aab7-a92f-4dce-a783-2b8434c8226a
+        loadProperties: true
+        paths:
+        - /
+        loadVersions: true
+        loadChildren: true
+        repositories:
+        - example
+    QueryResponseExample:
+      summary: QueryResponseExample
+      value:
+      - path: /pomodoro.jpg
+        id: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+        type: bb:image
+        creationDate: 2019-02-12T13:54:27Z
+        lastModificationDate: 2019-02-12T13:56:52Z
+        properties:
+          bb:width: 820
+          cmis:isImmutable: false
+          cmis:versionLabel: "2.0"
+          cmis:objectTypeId: bb:image
+          cmis:createdBy: admin
+          cmis:isMajorVersion: true
+          cmis:contentStreamFileName: tomato.jpg
+          cmis:name: pomodoro.jpg
+          cmis:isLatestVersion: true
+          cmis:contentStreamLength: 46698
+          cmis:objectId: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+          cmis:path: /pomodoro.jpg
+          bb:height: 573
+          cmis:lastModifiedBy: manager
+          cmis:contentStreamMimeType: application/octet-stream
+          cmis:baseTypeId: cmis:document
+          cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+          cmis:changeToken: 2642db61-04cf-452e-9fb2-98efb583b819
+          cmis:isVersionSeriesCheckedOut: false
+          cmis:versionSeriesId: f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451
+          cmis:isLatestMajorVersion: true
+          bb:title: Pomodoro
+        relationships:
+        - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+          from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        versions:
+        - path: /tomato.jpg
+          id: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+          repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+          type: bb:image
+          creationDate: 2019-02-12T13:54:27Z
+          lastModificationDate: 2019-02-12T13:56:52Z
+          properties:
+            bb:width: 600
+            cmis:isImmutable: false
+            cmis:versionLabel: "1.0"
+            cmis:objectTypeId: bb:image
+            cmis:createdBy: admin
+            cmis:isMajorVersion: true
+            cmis:contentStreamFileName: tomato.jpg
+            cmis:name: tomato.jpg
+            cmis:isLatestVersion: false
+            cmis:contentStreamLength: 27181
+            cmis:objectId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+            cmis:path: /tomato.jpg
+            bb:height: 300
+            cmis:lastModifiedBy: admin
+            cmis:contentStreamMimeType: application/octet-stream
+            cmis:baseTypeId: cmis:document
+            cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+            cmis:changeToken: 2642db61-04cf-452e-9fb2-98efb583b819
+            cmis:isVersionSeriesCheckedOut: false
+            cmis:versionSeriesId: f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451
+            cmis:isLatestMajorVersion: false
+            bb:title: Tomato
+          relationships:
+          - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+            from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+            to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+      - path: /a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+        id: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+        content: "{\"name\":\"Mr. Bacon\",\"addresses\":[{\"type\":\"Work\",\"postcode\"\
+          :\"AB12 34CD\",\"street\":\"Bacon Street\",\"city\":\"Birmingham\"}],\"\
+          picture\":\"{\"path\":\"/cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"id\"\
+          :\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\",\"repositoryId\":\"009924d5-5b9c-4fe4-bcd8-953e22319772\"\
+          ,\"type\":\"bb:image\",\"properties\":{\"bb:width\":820,\"cmis:isImmutable\"\
+          :false,\"cmis:versionLabel\":\"1.0\",\"cmis:objectTypeId\":\"bb:image\"\
+          ,\"cmis:createdBy\":\"admin\",\"cmis:creationDate\":{\"year\":2016,\"month\"\
+          :8,\"dayOfMonth\":27,\"hourOfDay\":13,\"minute\":3,\"second\":37},\"cmis:isMajorVersion\"\
+          :true,\"cmis:contentStreamFileName\":\"cd462e55-3335-4a07-b87f-f4f33455e105.jpg\"\
+          ,\"cmis:name\":\"cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"cmis:isLatestVersion\"\
+          :true,\"cmis:lastModificationDate\":{\"year\":2016,\"month\":8,\"dayOfMonth\"\
+          :27,\"hourOfDay\":13,\"minute\":3,\"second\":37},\"cmis:contentStreamLength\"\
+          :46698,\"cmis:objectId\":\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\",\"cmis:path\"\
+          :\"/cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"bb:height\":573,\"cmis:lastModifiedBy\"\
+          :\"admin\",\"cmis:contentStreamMimeType\":\"application/octet-stream\",\"\
+          cmis:baseTypeId\":\"cmis:document\",\"cmis:parentId\":\"eab19ad2-41d6-4101-a739-c537b8eea875\"\
+          ,\"cmis:changeToken\":\"2642db61-04cf-452e-9fb2-98efb583b819\",\"cmis:isVersionSeriesCheckedOut\"\
+          :false,\"cmis:versionSeriesId\":\"f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451\"\
+          ,\"cmis:isLatestMajorVersion\":true,\"bb:title\":\"Saturn\"},\"relationships\"\
+          :[{\"id\":\"09f93b4d-7c26-4dc4-b2da-9a394a2a4411\",\"from\":\"fa9f89e3-f7f9-4814-9a2b-b704a1dffad9\"\
+          ,\"to\":\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\"}]}\",\"summary\":\"<p>Bacon\
+          \ ipsum dolor amet in ribeye andouille pork loin prosciutto jowl meatloaf\
+          \ chuck corned beef sint do flank ut. Capicola elit fatback, pastrami commodo\
+          \ pork belly cupidatat alcatra sint doner tempor meatball kevin flank. Chuck\
+          \ mollit dolor, labore magna beef tail biltong cupim officia pariatur ribeye\
+          \ reprehenderit nisi spare ribs. Meatloaf in chuck, sirloin velit ad laboris\
+          \ sausage reprehenderit. Voluptate est cupidatat landjaeger kielbasa capicola.\
+          \ Beef nulla pig ground round ipsum leberkas pariatur eu andouille. Corned\
+          \ beef flank culpa, ut meatball swine ipsum pariatur in commodo do shank\
+          \ pancetta frankfurter quis.</p>\\n\"}"
+        repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+        type: bb:structuredcontent
+        length: 2170
+        creationDate: 2019-02-12T13:54:27Z
+        lastModificationDate: 2019-02-12T13:56:52Z
+        properties:
+          cmis:isImmutable: false
+          cmis:versionLabel: "1.0"
+          cmis:objectTypeId: bb:structuredcontent
+          cmis:createdBy: admin
+          cmis:isMajorVersion: true
+          cmis:contentStreamFileName: a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:name: a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:isLatestVersion: true
+          cmis:contentStreamLength: 818
+          cmis:objectId: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          cmis:path: /a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:lastModifiedBy: admin
+          cmis:contentStreamMimeType: application/octet-stream
+          cmis:baseTypeId: cmis:document
+          cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+          cmis:changeToken: 9a773429-a16c-408b-99f8-82ea6795dd93
+          cmis:isVersionSeriesCheckedOut: false
+          cmis:versionSeriesId: 7d9f0e4c-9149-48ba-957a-70f55cc1b41d
+          cmis:isLatestMajorVersion: true
+        relationships:
+        - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+          from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        links:
+          content-by-id:
+            href: /contentservices/api/contentstream-id/pub-521ccfbf-a8ff-43d7-bc95-86489cd6/4e9f7985-21fe-4bbc-8b7a-358bef4b5b60
+          content-by-path:
+            href: /contentservices/api/contentstream/pub-521ccfbf-a8ff-43d7-bc95-86489cd6/saturn-85685323-7c5b-4b50-bc41-e622e3d30712.jpg
+    RemoveRequestExample:
+      summary: RemoveRequestExample
+      value:
+        repositoryId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+        ids:
+        - d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+        - 1dde15fc-31da-4961-9fb9-d90855c3f251
+    RevertRequestExample:
+      summary: RevertRequestExample
+      value:
+      - repositoryId: contentRepository
+        id: d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+        version: "2.0"
+      - repositoryId: 1dde15fc-31da-4961-9fb9-d90855c3f251
+        id: 009924d5-5b9c-4fe4-bcd8-953e22319772
+        version: "5.0"
+    SaveRequestExample:
+      summary: SaveRequestExample
+      value:
+      - path: /Generated content/my-portal/page-1/CXPContentWidgetd0e346eb-4cd4-4a8e-b545-9b9f2001cf7b/en-simpleContent
+        repositoryId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+        type: bb:structuredcontent
+        content: "{\"article\":{\"contentbody\":\"\",\"bb:title\":\"\"},\"link\":{\"\
+          path\":\"\",\"linkRef\":\"\",\"browserRef\":\"\",\"target\":\"\"},\"image\"\
+          :{\"path\":\"/gateway/api/contentservices/atom/3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5/content?id=10c0c785-e622-41df-a1d5-b9e452ea8886\"\
+          ,\"browserRef\":\"cs:@portalRepository:10c0c785-e622-41df-a1d5-b9e452ea8886\"\
+          },\"text\":{\"textcontent\":\"\"}}"
+        mimeType: text/json
+        properties:
+          cmis:createdBy: admin
+          cmis:lastModifiedBy: admin
+          bb:locale: en
+      - path: /folder-1/folder-2/myDocument
+        repositoryId: contentRepository
+        type: cmis:document
+        content: "It was a bright and sunny day. The sun shone brilliantly in the\
+          \ clear, blue sky."
+        mimeType: text/plain
+        properties:
+          cmis:createdBy: admin
+          cmis:lastModifiedBy: admin
+          bb:locale: en
+      - id: d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+        repositoryId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+        type: cmis:document
+        content: Text to update.
+    SaveResponseExample:
+      summary: SaveResponseExample
+      value:
+      - path: /pomodoro.jpg
+        id: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+        type: bb:image
+        creationDate: 2019-02-12T13:54:27Z
+        lastModificationDate: 2019-02-12T13:56:52Z
+        properties:
+          bb:width: 820
+          cmis:isImmutable: false
+          cmis:versionLabel: "2.0"
+          cmis:objectTypeId: bb:image
+          cmis:createdBy: admin
+          cmis:isMajorVersion: true
+          cmis:contentStreamFileName: tomato.jpg
+          cmis:name: pomodoro.jpg
+          cmis:isLatestVersion: true
+          cmis:contentStreamLength: 46698
+          cmis:objectId: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+          cmis:path: /pomodoro.jpg
+          bb:height: 573
+          cmis:lastModifiedBy: manager
+          cmis:contentStreamMimeType: application/octet-stream
+          cmis:baseTypeId: cmis:document
+          cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+          cmis:changeToken: 2642db61-04cf-452e-9fb2-98efb583b819
+          cmis:isVersionSeriesCheckedOut: false
+          cmis:versionSeriesId: f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451
+          cmis:isLatestMajorVersion: true
+          bb:title: Pomodoro
+        relationships:
+        - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+          from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        versions:
+        - path: /tomato.jpg
+          id: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+          repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+          type: bb:image
+          creationDate: 2019-02-12T13:54:27Z
+          lastModificationDate: 2019-02-12T13:56:52Z
+          properties:
+            bb:width: 600
+            cmis:isImmutable: false
+            cmis:versionLabel: "1.0"
+            cmis:objectTypeId: bb:image
+            cmis:createdBy: admin
+            cmis:isMajorVersion: true
+            cmis:contentStreamFileName: tomato.jpg
+            cmis:name: tomato.jpg
+            cmis:isLatestVersion: false
+            cmis:contentStreamLength: 27181
+            cmis:objectId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+            cmis:path: /tomato.jpg
+            bb:height: 300
+            cmis:lastModifiedBy: admin
+            cmis:contentStreamMimeType: application/octet-stream
+            cmis:baseTypeId: cmis:document
+            cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+            cmis:changeToken: 2642db61-04cf-452e-9fb2-98efb583b819
+            cmis:isVersionSeriesCheckedOut: false
+            cmis:versionSeriesId: f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451
+            cmis:isLatestMajorVersion: false
+            bb:title: Tomato
+          relationships:
+          - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+            from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+            to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+      - path: /a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+        id: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+        content: "{\"name\":\"Mr. Bacon\",\"addresses\":[{\"type\":\"Work\",\"postcode\"\
+          :\"AB12 34CD\",\"street\":\"Bacon Street\",\"city\":\"Birmingham\"}],\"\
+          picture\":\"{\"path\":\"/cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"id\"\
+          :\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\",\"repositoryId\":\"009924d5-5b9c-4fe4-bcd8-953e22319772\"\
+          ,\"type\":\"bb:image\",\"properties\":{\"bb:width\":820,\"cmis:isImmutable\"\
+          :false,\"cmis:versionLabel\":\"1.0\",\"cmis:objectTypeId\":\"bb:image\"\
+          ,\"cmis:createdBy\":\"admin\",\"cmis:creationDate\":{\"year\":2016,\"month\"\
+          :8,\"dayOfMonth\":27,\"hourOfDay\":13,\"minute\":3,\"second\":37},\"cmis:isMajorVersion\"\
+          :true,\"cmis:contentStreamFileName\":\"cd462e55-3335-4a07-b87f-f4f33455e105.jpg\"\
+          ,\"cmis:name\":\"cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"cmis:isLatestVersion\"\
+          :true,\"cmis:lastModificationDate\":{\"year\":2016,\"month\":8,\"dayOfMonth\"\
+          :27,\"hourOfDay\":13,\"minute\":3,\"second\":37},\"cmis:contentStreamLength\"\
+          :46698,\"cmis:objectId\":\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\",\"cmis:path\"\
+          :\"/cd462e55-3335-4a07-b87f-f4f33455e105.jpg\",\"bb:height\":573,\"cmis:lastModifiedBy\"\
+          :\"admin\",\"cmis:contentStreamMimeType\":\"application/octet-stream\",\"\
+          cmis:baseTypeId\":\"cmis:document\",\"cmis:parentId\":\"eab19ad2-41d6-4101-a739-c537b8eea875\"\
+          ,\"cmis:changeToken\":\"2642db61-04cf-452e-9fb2-98efb583b819\",\"cmis:isVersionSeriesCheckedOut\"\
+          :false,\"cmis:versionSeriesId\":\"f2e0e77d-d6cb-4db1-ab26-d7d7bd96d451\"\
+          ,\"cmis:isLatestMajorVersion\":true,\"bb:title\":\"Saturn\"},\"relationships\"\
+          :[{\"id\":\"09f93b4d-7c26-4dc4-b2da-9a394a2a4411\",\"from\":\"fa9f89e3-f7f9-4814-9a2b-b704a1dffad9\"\
+          ,\"to\":\"4a6d0591-0b44-4fbf-82c1-968eb8c96595\"}]}\",\"summary\":\"<p>Bacon\
+          \ ipsum dolor amet in ribeye andouille pork loin prosciutto jowl meatloaf\
+          \ chuck corned beef sint do flank ut. Capicola elit fatback, pastrami commodo\
+          \ pork belly cupidatat alcatra sint doner tempor meatball kevin flank. Chuck\
+          \ mollit dolor, labore magna beef tail biltong cupim officia pariatur ribeye\
+          \ reprehenderit nisi spare ribs. Meatloaf in chuck, sirloin velit ad laboris\
+          \ sausage reprehenderit. Voluptate est cupidatat landjaeger kielbasa capicola.\
+          \ Beef nulla pig ground round ipsum leberkas pariatur eu andouille. Corned\
+          \ beef flank culpa, ut meatball swine ipsum pariatur in commodo do shank\
+          \ pancetta frankfurter quis.</p>\\n\"}"
+        repositoryId: 009924d5-5b9c-4fe4-bcd8-953e22319772
+        type: bb:structuredcontent
+        length: 2170
+        creationDate: 2019-02-12T13:54:27Z
+        lastModificationDate: 2019-02-12T13:56:52Z
+        properties:
+          cmis:isImmutable: false
+          cmis:versionLabel: "1.0"
+          cmis:objectTypeId: bb:structuredcontent
+          cmis:createdBy: admin
+          cmis:isMajorVersion: true
+          cmis:contentStreamFileName: a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:name: a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:isLatestVersion: true
+          cmis:contentStreamLength: 818
+          cmis:objectId: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          cmis:path: /a0625bd5-da8e-4aa3-8609-c79b1c650e1e_author
+          cmis:lastModifiedBy: admin
+          cmis:contentStreamMimeType: application/octet-stream
+          cmis:baseTypeId: cmis:document
+          cmis:parentId: eab19ad2-41d6-4101-a739-c537b8eea875
+          cmis:changeToken: 9a773429-a16c-408b-99f8-82ea6795dd93
+          cmis:isVersionSeriesCheckedOut: false
+          cmis:versionSeriesId: 7d9f0e4c-9149-48ba-957a-70f55cc1b41d
+          cmis:isLatestMajorVersion: true
+        relationships:
+        - id: 09f93b4d-7c26-4dc4-b2da-9a394a2a4411
+          from: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+          to: 4a6d0591-0b44-4fbf-82c1-968eb8c96595
+        links:
+          content-by-id:
+            href: /contentservices/api/contentstream-id/pub-521ccfbf-a8ff-43d7-bc95-86489cd6/4e9f7985-21fe-4bbc-8b7a-358bef4b5b60
+          content-by-path:
+            href: /contentservices/api/contentstream/pub-521ccfbf-a8ff-43d7-bc95-86489cd6/saturn-85685323-7c5b-4b50-bc41-e622e3d30712.jpg
+    DuplicateRequestExample:
+      summary: DuplicateRequestExample
+      value:
+        repositoryId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+        rootFolder: /Generated content/
+        contents:
+        - sourceContentId: d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+          targetPath: /Generated content/new-duplicate-path1
+        - sourceContentId: 53e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+          targetPath: /Generated content/new-duplicate-path3/
+        - sourceContentId: 1dde15fc-31da-4961-9fb9-d90855c3f251
+          targetPath: /new-duplicate-path2
+    DuplicateResponseExample:
+      summary: DuplicateResponseExample
+      value:
+        contents:
+        - sourceContentId: d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+          duplicatedContentId: 56h346eb-4a8e-4a8e-b545-9b9f2001cf7b
+          targetPath: /Generated content/new-duplicate-path1
+          duplicatedStatus: true
+        - sourceContentId: 53e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+          duplicatedContentId: 45y346eb-4a8e-4a8e-b545-9b9f2001cf7b
+          targetPath: /Generated content/new-duplicate-path3/originalname
+          duplicatedStatus: true
+        - sourceContentId: 1dde15fc-31da-4961-9fb9-d90855c3f251
+          duplicatedContentId: 1dde15fc-31da-4961-9fb9-d90855c3f251
+          targetPath: ""
+          duplicatedStatus: false
+    SearchRequestExample:
+      summary: SearchRequestExample
+      value:
+        paths:
+        - /search/in/this/folder
+        - '!/cant/search/this'
+        properties:
+          bb:locale: pt_BR
+          cmis:contentStreamMimeType: image/jpeg
+        repositories:
+        - contentRepository
+        searchTerm: hello
+    UploadResponseExample:
+      summary: UploadResponseExample
+      value:
+        path: /Samsung
+        id: b9389cc7-ee42-427f-a64c-f0a6cb865e6a
+        mimeType: application/pdf
+        length: 235695
+        creationDate: 2020-09-22T08:36:19Z
+        lastModificationDate: 2020-09-22T08:36:19Z
+        properties:
+          cmis:isImmutable: false
+          cmis:objectTypeId: cmis:document
+          cmis:createdBy: api-test-svc
+          cmis:contentStreamFileName: Samsung
+          cmis:isMajorVersion: false
+          cmis:name: Samsung
+          cmis:isLatestVersion: true
+          cmis:contentStreamLength: 235695
+          cmis:objectId: b9389cc7-ee42-427f-a64c-f0a6cb865e6a
+          cmis:path: /Samsung
+          cmis:lastModifiedBy: api-test-svc
+          cmis:contentStreamMimeType: application/pdf
+          cmis:baseTypeId: cmis:document
+          cmis:parentId: 2724d081-ac46-41fe-87a1-45090364a219
+          cmis:changeToken: 1afeed10-3b54-4d83-9a91-6402a6aac6ed
+          cmis:isVersionSeriesCheckedOut: false
+          cmis:isLatestMajorVersion: false
+        type: cmis:document
+        relationships: []
+        repositoryId: "123"
+        links:
+          content-by-id:
+            href: /contentservices/api/contentstream-id/123/b9389cc7-ee42-427f-a64c-f0a6cb865e6a
+          content-by-path:
+            href: /contentservices/api/contentstream/123/Samsung
+    RepositoriesExample:
+      summary: RepositoriesExample
+      value:
+      - repositoryId: bank1
+        name: bank1
+        description: Repository for portal bank1
+        implementation: DB
+        versioningEnabled: true
+        configData: null
+        private: false
+        antivirusScanTrigger: NONE
+      - repositoryId: bank2
+        name: bank2
+        description: Repository for portal bank2
+        implementation: DB
+        versioningEnabled: true
+        configData: null
+        private: true
+        antivirusScanTrigger: ON_SAVE
+    CreateRetentionPolicyExample:
+      summary: CreateRetentionPolicyExample
+      value:
+        name: RemoveAllPDFsEveryWeek
+        pattern: /**/*.pdf
+        description: Remove all pdf files in the repository after 7 days
+        timeToLive: 7d
+    RetentionPolicyExample:
+      summary: RetentionPolicyExample
+      value:
+        id: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+        name: RemoveAllPDFsEvery2weeks
+        pattern: /**/*.pdf
+        description: Remove all pdf files in the repository after 15 days
+        timeToLive: 15d
+    RetentionPoliciesExample:
+      summary: RetentionPoliciesExample
+      value:
+      - id: fa9f89e3-f7f9-4814-9a2b-b704a1dffad9
+        name: RemoveAllPDFsEvery2weeks
+        pattern: /**/*.pdf
+        description: Remove all pdf files in the repository after 1 Month and 15 days
+        timeToLive: 15d
+      - id: fa9f89e4-f7f9-4814-9a2b-b704a1dffad5
+        name: RemoveJPGEveryMonth
+        pattern: /**/*.jpg
+        description: Remove all .jpg images in the repository after 30 days
+        timeToLive: 30d
+    SignedUrlRequestExample:
+      summary: SignedUrlRequestExample
+      value:
+        repositoryId: 3fb006de-d333-4ab2-8a3e-6f5f3c2fb5d5
+        id: d0e346eb-4cd4-4a8e-b545-9b9f2001cf7b
+    SignedUrlResponseExample:
+      summary: SignedUrlResponseExample
+      value:
+        url: https://documentsignedurl.com/hash
+        ttl: "3214392402"
+  responses:
+    InvalidRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Invalid request
+    UnprocessableEntity:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Unprocessable entity
+    InternalServerError:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Internal server error
+    Conflict:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Conflict
+    NotFound:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Object not found
+    Unauthorized:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: Unauthorized action
+    Forbidden:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusMessage'
+      description: File threat detected
+  schemas:
+    DocumentsToMove:
+      description: Payload schema to move documents.
+      items:
+        $ref: '#/components/schemas/document-to-move'
+      title: Documents to move schema
+      type: array
+      example: null
+    DocumentToMove:
+      example:
+        path: path
+        repositoryId: repositoryId
+        id: id
+      properties:
+        id:
+          description: ID of the existing document to move.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: New path where to move the document.
+          title: New document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which the document belongs.
+          title: Repository ID
+          type: string
+          example: null
+      required:
+      - id
+      - path
+      - repositoryId
+      title: Document to move
+      type: object
+    RemoveRequest:
+      description: Payload schema to delete documents from a specific repository.
+      example:
+        repositoryId: repositoryId
+        ids:
+        - ids
+        - ids
+      properties:
+        repositoryId:
+          description: Repository ID to delete documents from.
+          type: string
+          example: null
+        ids:
+          items:
+            description: Document ID to delete.
+            type: string
+            example: null
+          minItems: 1
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - ids
+      - repositoryId
+      title: Document remove request.
+      type: object
+    SearchRequest:
+      description: Content Api provides search functionality as a replacement for
+        CMIS
+      example:
+        searchTerm: searchTerm
+        repositories:
+        - repositories
+        - repositories
+        paths:
+        - paths
+        - paths
+        properties:
+          key: properties
+      properties:
+        searchTerm:
+          description: Free text string to be searched
+          maxLength: 765
+          minLength: 1
+          title: searchTerm.
+          type: string
+          example: null
+        paths:
+          description: "List of paths of content to be searched. Folders can be omitted\
+            \ by adding '!' as prefix. For Ex: paths: ['/', '!/Generated content']\
+            \ will search on '/ ' except '!/Generated content'"
+          items:
+            type: string
+            example: null
+          title: Paths.
+          type: array
+          uniqueItems: true
+          example: null
+        repositories:
+          description: List of content repositories to limit the search to
+          items:
+            type: string
+            example: null
+          title: Repositories.
+          type: array
+          uniqueItems: true
+          example: null
+        properties:
+          additionalProperties:
+            type: string
+            example: null
+          description: Map of key/value pairs of property names and the values on
+            which the results should be filtered.
+          title: Properties.
+          type: object
+          example: null
+      type: object
+    QueryRequest:
+      description: Content Api provides querying and relationship resolving features
+        as a replacement for CMIS
+      example:
+        inlineRelationshipsContent: true
+        loadChildren: false
+        loadContentForTypes:
+        - loadContentForTypes
+        - loadContentForTypes
+        loadRecursiveRelationships: true
+        loadVersions: false
+        loadContentForMimeTypes:
+        - loadContentForMimeTypes
+        - loadContentForMimeTypes
+        repositories:
+        - repositories
+        - repositories
+        loadSourceRelationships: true
+        paths:
+        - paths
+        - paths
+        loadTargetRelationships: false
+        loadRenditions: false
+        ids:
+        - ids
+        - ids
+        loadProperties: false
+      properties:
+        ids:
+          description: Content ids to be resolved
+          items:
+            type: string
+            example: null
+          title: Ids.
+          type: array
+          uniqueItems: true
+          example: null
+        paths:
+          description: "List of paths of content to be searched. Child folders can\
+            \ be omitted by adding '!' as prefix. For Ex: paths: ['/', '!/Generated\
+            \ content'] will fetch all children of '/ ' except '!/Generated content'"
+          items:
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        repositories:
+          description: List of content repositories to limit the search to. Skipping
+            this property or specifying multiple repositories is not recommended for
+            performance reasons. Not specified repository is deprecated.
+          items:
+            type: string
+            example: null
+          title: Repositories.
+          type: array
+          uniqueItems: true
+          example: null
+        loadContentForTypes:
+          description: List of Cmis Types for which content should be loaded
+          items:
+            description: Cmis Types
+            title: Cmis Type.
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        loadContentForMimeTypes:
+          description: List of mimeTypes for which content should be loaded
+          items:
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        loadTargetRelationships:
+          default: false
+          description: Load the target relationships of fetched items
+          type: boolean
+          example: null
+        loadSourceRelationships:
+          default: true
+          description: Load the source relationships of fetched items
+          type: boolean
+          example: null
+        loadRecursiveRelationships:
+          default: true
+          description: Load all relationships of fetched items recursively
+          type: boolean
+          example: null
+        loadProperties:
+          default: false
+          description: Should load all properties of the fetched items
+          type: boolean
+          example: null
+        inlineRelationshipsContent:
+          default: true
+          description: If relationships content should be resolved and inlined in
+            the related json content
+          type: boolean
+          example: null
+        loadRenditions:
+          default: false
+          description: 'Load all renditions of fetched items '
+          type: boolean
+          example: null
+        loadChildren:
+          default: false
+          description: Should load the children of fetched content
+          type: boolean
+          example: null
+        loadVersions:
+          default: false
+          description: List of all version belonging to specific document.
+          title: Load all versions.
+          type: boolean
+          example: null
+      title: Content Api schema.
+      type: object
+    DuplicateRequest:
+      additionalProperties: false
+      description: Payload schema to duplicate documents in a specific repository.
+      example:
+        contents:
+        - sourceContentId: sourceContentId
+          targetPath: targetPath
+          createSignedUrl: false
+        - sourceContentId: sourceContentId
+          targetPath: targetPath
+          createSignedUrl: false
+        rootFolder: rootFolder
+        repositoryId: repositoryId
+      properties:
+        repositoryId:
+          description: Repository ID to duplicate documents in.
+          type: string
+          example: null
+        rootFolder:
+          description: Root folder in which original documents should be searched
+            for. Default is /
+          type: string
+          example: null
+        contents:
+          description: All documents to duplicate in this request.
+          items:
+            $ref: '#/components/schemas/item-to-duplicate'
+          title: Documents to duplicate
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - contents
+      - repositoryId
+      title: Content Api Duplicate Request Schema
+      type: object
+    DuplicateResponse:
+      description: Response payload with duplicated documents information.
+      example:
+        contents:
+        - duplicatedStatus: true
+          sourceContentId: sourceContentId
+          targetPath: targetPath
+          duplicatedContentId: duplicatedContentId
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+        - duplicatedStatus: true
+          sourceContentId: sourceContentId
+          targetPath: targetPath
+          duplicatedContentId: duplicatedContentId
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+      properties:
+        contents:
+          description: All duplicated documents under request.
+          items:
+            $ref: '#/components/schemas/duplicated-item'
+          title: Duplicated documents
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - contents
+      title: Content Api Duplicate Response Schema
+      type: object
+    Documents:
+      description: List of Documents. Result query from the content api
+      items:
+        $ref: '#/components/schemas/document'
+      type: array
+      uniqueItems: true
+      example: null
+    DocumentUpload:
+      properties:
+        targetPath:
+          description: Path where the item should be added.
+          type: string
+          example: null
+        file:
+          description: File to upload.
+          format: binary
+          type: string
+          example: null
+        name:
+          description: File name.
+          type: string
+          example: null
+        cmis:objectTypeId:
+          description: Document Object Type ID property.
+          enum:
+          - cmis:document
+          type: string
+          example: null
+        cmis:createdBy:
+          description: Document created by property.
+          type: string
+          example: null
+        cmis:lastModifiedBy:
+          description: Document last modified by property.
+          type: string
+          example: null
+        bb:title:
+          description: Document title property.
+          type: string
+          example: null
+        bb:locale:
+          description: Document locale property.
+          type: string
+          example: null
+        changeToken:
+          description: Document change token property.
+          type: string
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+      required:
+      - file
+      - name
+      - targetPath
+      title: Document upload
+      type: object
+      example: null
+    Document:
+      description: Content Services Document
+      example:
+        length: 0
+        mimeType: application/json; charset=utf-8
+        type: type
+        creationDate: 2000-01-23T04:56:07.000+00:00
+        createSignedUrl: false
+        content: content
+        path: path
+        relationships:
+        - toRepositoryId: toRepositoryId
+          from: from
+          id: id
+          to: to
+        - toRepositoryId: toRepositoryId
+          from: from
+          id: id
+          to: to
+        lastModificationDate: 2000-01-23T04:56:07.000+00:00
+        versionLabel: versionLabel
+        children:
+        - length: 0
+          mimeType: application/json; charset=utf-8
+          type: type
+          creationDate: 2000-01-23T04:56:07.000+00:00
+          createSignedUrl: false
+          content: content
+          path: path
+          relationships:
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          lastModificationDate: 2000-01-23T04:56:07.000+00:00
+          versionLabel: versionLabel
+          children:
+          - null
+          - null
+          versions:
+          - null
+          - null
+          repositoryId: repositoryId
+          renditions:
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          links:
+            key:
+              key: "{}"
+          id: id
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+          properties:
+            key: "{}"
+        - length: 0
+          mimeType: application/json; charset=utf-8
+          type: type
+          creationDate: 2000-01-23T04:56:07.000+00:00
+          createSignedUrl: false
+          content: content
+          path: path
+          relationships:
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          lastModificationDate: 2000-01-23T04:56:07.000+00:00
+          versionLabel: versionLabel
+          children:
+          - null
+          - null
+          versions:
+          - null
+          - null
+          repositoryId: repositoryId
+          renditions:
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          links:
+            key:
+              key: "{}"
+          id: id
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+          properties:
+            key: "{}"
+        versions:
+        - length: 0
+          mimeType: application/json; charset=utf-8
+          type: type
+          creationDate: 2000-01-23T04:56:07.000+00:00
+          createSignedUrl: false
+          content: content
+          path: path
+          relationships:
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          lastModificationDate: 2000-01-23T04:56:07.000+00:00
+          versionLabel: versionLabel
+          children:
+          - null
+          - null
+          versions:
+          - null
+          - null
+          repositoryId: repositoryId
+          renditions:
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          links:
+            key:
+              key: "{}"
+          id: id
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+          properties:
+            key: "{}"
+        - length: 0
+          mimeType: application/json; charset=utf-8
+          type: type
+          creationDate: 2000-01-23T04:56:07.000+00:00
+          createSignedUrl: false
+          content: content
+          path: path
+          relationships:
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          - toRepositoryId: toRepositoryId
+            from: from
+            id: id
+            to: to
+          lastModificationDate: 2000-01-23T04:56:07.000+00:00
+          versionLabel: versionLabel
+          children:
+          - null
+          - null
+          versions:
+          - null
+          - null
+          repositoryId: repositoryId
+          renditions:
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          - renditionDocumentId: renditionDocumentId
+            streamId: streamId
+            kind: kind
+            originalDocumentId: originalDocumentId
+            length: 6
+            width: 5
+            links:
+              key:
+                key: "{}"
+            mimeType: mimeType
+            title: title
+            height: 1
+          links:
+            key:
+              key: "{}"
+          id: id
+          signedUrl:
+            ttl: ttl
+            url: http://example.com/aeiou
+          properties:
+            key: "{}"
+        repositoryId: repositoryId
+        renditions:
+        - renditionDocumentId: renditionDocumentId
+          streamId: streamId
+          kind: kind
+          originalDocumentId: originalDocumentId
+          length: 6
+          width: 5
+          links:
+            key:
+              key: "{}"
+          mimeType: mimeType
+          title: title
+          height: 1
+        - renditionDocumentId: renditionDocumentId
+          streamId: streamId
+          kind: kind
+          originalDocumentId: originalDocumentId
+          length: 6
+          width: 5
+          links:
+            key:
+              key: "{}"
+          mimeType: mimeType
+          title: title
+          height: 1
+        links:
+          key:
+            key: "{}"
+        id: id
+        signedUrl:
+          ttl: ttl
+          url: http://example.com/aeiou
+        properties:
+          key: "{}"
+      properties:
+        path:
+          description: Content Path.
+          title: Path.
+          type: string
+          example: null
+        id:
+          description: Content unique id.
+          title: Id.
+          type: string
+          example: null
+        repositoryId:
+          description: Repository which the socument belongs to.
+          title: RepositoryId.
+          type: string
+          example: null
+        type:
+          description: The cmis type of this document.
+          title: Type.
+          type: string
+          example: null
+        versionLabel:
+          description: The version label for this document.
+          title: Version Label.
+          type: string
+          example: null
+        creationDate:
+          description: "Date / time of creation, ISO format."
+          format: date-time
+          title: Creation timestamp.
+          type: string
+          example: null
+        lastModificationDate:
+          description: "Date / time of last modification, ISO format."
+          format: date-time
+          title: Modification timestamp.
+          type: string
+          example: null
+        properties:
+          additionalProperties:
+            type: object
+            example: null
+          description: List of cmis properties of this document.
+          title: Properties.
+          type: object
+          example: null
+        content:
+          description: Content of the document
+          title: Content
+          type: string
+          example: null
+        mimeType:
+          default: application/json; charset=utf-8
+          description: Content mime type
+          type: string
+          example: null
+        length:
+          description: Length of the document.
+          format: int64
+          title: Length.
+          type: integer
+          example: null
+        renditions:
+          description: All the renditions of this Document.
+          items:
+            $ref: '#/components/schemas/rendition'
+          title: Renditions.
+          type: array
+          uniqueItems: true
+          example: null
+        children:
+          description: This document's children list.
+          items:
+            $ref: '#/components/schemas/document'
+          title: Children.
+          type: array
+          uniqueItems: true
+          example: null
+        relationships:
+          description: All the relationship to/from this document
+          items:
+            $ref: '#/components/schemas/document-relationship'
+          title: Relationships.
+          type: array
+          uniqueItems: true
+          example: null
+        versions:
+          description: All versions of this document
+          items:
+            $ref: '#/components/schemas/document'
+          title: Versions.
+          type: array
+          uniqueItems: true
+          example: null
+        links:
+          additionalProperties:
+            additionalProperties:
+              type: object
+              example: null
+            type: object
+            example: null
+          description: All the different links to the document
+          title: Links
+          type: object
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+        signedUrl:
+          $ref: '#/components/schemas/document-signed-url-response'
+      title: A Document.
+      type: object
+    DocumentsToSave:
+      description: Payload schema to create or update documents.
+      items:
+        $ref: '#/components/schemas/document-to-save'
+      title: Content Api schema
+      type: array
+      example: null
+    DocumentToSave:
+      description: CMIS Document to create or update
+      example:
+        path: path
+        repositoryId: repositoryId
+        length: 0
+        id: id
+        mimeType: application/json; charset=utf-8
+        type: bb:structuredcontent
+        createSignedUrl: false
+        content: content
+        properties:
+          key: "{}"
+      properties:
+        id:
+          description: ID of the existing document to update.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: Path of the document to create or update. Folders in the path
+            will be created automatically if needed.
+          title: Document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which updating or creating document belongs.
+          title: Repository ID
+          type: string
+          example: null
+        type:
+          default: bb:structuredcontent
+          description: The cmis type of the document
+          title: Type of the document
+          type: string
+          example: null
+        content:
+          description: Content of the document to create or update
+          title: Content
+          type: string
+          example: null
+        mimeType:
+          default: application/json; charset=utf-8
+          description: Content mime type
+          type: string
+          example: null
+        length:
+          description: Content length
+          format: int64
+          title: Length
+          type: integer
+          example: null
+        properties:
+          additionalProperties:
+            type: object
+            example: null
+          description: Optional content item properties
+          title: Content item properties
+          type: object
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+      required:
+      - repositoryId
+      title: Document
+      type: object
+    ItemsToRevert:
+      description: Payload schema to revert documents to a specific versions.
+      items:
+        $ref: '#/components/schemas/item-to-revert'
+      title: Content Api schema
+      type: array
+      example: null
+    ItemToRevert:
+      description: Schema to revert to a specific version of the Document
+      example:
+        repositoryId: repositoryId
+        id: id
+        version: version
+      properties:
+        repositoryId:
+          description: Repository ID to revert version of documents from.
+          type: string
+          example: null
+        id:
+          description: Document ID to revert.
+          type: string
+          example: null
+        version:
+          description: Version label to revert to.
+          type: string
+          example: null
+      required:
+      - id
+      - repositoryId
+      - version
+      title: Object that specifies the reference to certain version of object
+      type: object
+    Rendition:
+      description: Rendition definition.
+      properties:
+        streamId:
+          description: The rendition's stream id.
+          title: StreamId.
+          type: string
+          example: null
+        mimeType:
+          description: The rendition's mimeType.
+          title: MimeType.
+          type: string
+          example: null
+        length:
+          description: The Renditions length.
+          format: int32
+          title: Length.
+          type: integer
+          example: null
+        title:
+          description: Rendition's title.
+          title: Title.
+          type: string
+          example: null
+        kind:
+          description: The cmis kind of the rendition.
+          title: Kind.
+          type: string
+          example: null
+        height:
+          description: Height of the Rendition (Applicable only for images).
+          format: int32
+          title: Height.
+          type: integer
+          example: null
+        width:
+          description: Width of the Rendition (Applicable only for images).
+          format: int32
+          title: Width.
+          type: integer
+          example: null
+        renditionDocumentId:
+          description: The rendition Document id.
+          title: RenditionDocumentId.
+          type: string
+          example: null
+        originalDocumentId:
+          description: The rendition original Document id.
+          title: OriginalDocumentId.
+          type: string
+          example: null
+        links:
+          additionalProperties:
+            additionalProperties:
+              type: object
+              example: null
+            type: object
+            example: null
+          description: All the links to this Rendition.
+          title: Links
+          type: object
+          example: null
+      title: Rendition.
+      type: object
+      example: null
+    Repository:
+      description: CMIS Repository type
+      example:
+        isProtected: false
+        configData: configData
+        antivirusScanTrigger: null
+        versioningEnabled: true
+        implementation: implementation
+        repositoryId: repositoryId
+        name: name
+        description: description
+        isPrivate: false
+      properties:
+        repositoryId:
+          description: Repository id.
+          title: RepositoryId.
+          type: string
+          example: null
+        name:
+          description: Repository name.
+          type: string
+          example: null
+        description:
+          description: Repository description.
+          type: string
+          example: null
+        isPrivate:
+          default: false
+          description: Whether or not the repository is marked as private within Content
+            Services
+          type: boolean
+          example: null
+        isProtected:
+          default: false
+          description: Whether or not the repository is marked as protected with Access
+            Control
+          type: boolean
+          example: null
+        implementation:
+          description: Storage implementation name
+          type: string
+          example: null
+        versioningEnabled:
+          default: true
+          description: Flag that indicates whether repository versioned
+          type: boolean
+          example: null
+        configData:
+          description: configuration data
+          type: string
+          example: null
+        antivirusScanTrigger:
+          $ref: '#/components/schemas/antivirus-scan-trigger'
+      required:
+      - description
+      - name
+      - repositoryId
+      title: Description of the Repository type.
+      type: object
+    Repositories:
+      description: Schema of a collection of Repository objects.
+      items:
+        $ref: '#/components/schemas/repository'
+      title: Repository collection schema
+      type: array
+      example: null
+    ResourcesImportResponse:
+      description: Schema of a collection of resource import responses.
+      items:
+        type: string
+        example: null
+      title: Resources import response
+      type: array
+      uniqueItems: true
+      example: null
+    RetentionPolicy:
+      description: Retention Policy type.
+      example:
+        timeToLive: timeToLive
+        name: name
+        pattern: pattern
+        description: description
+        id: id
+      properties:
+        id:
+          description: Retention policy unique Identifier
+          title: Retention Policy Id
+          type: string
+          example: null
+        name:
+          description: Retention policy unique name
+          title: Retention Policy Name
+          type: string
+          example: null
+        pattern:
+          description: Ant Pattern of files to match
+          title: Pattern
+          type: string
+          example: null
+        description:
+          description: Retention policy description.
+          title: Description
+          type: string
+          example: null
+        timeToLive:
+          description: "Specifies the time to live of the files that match the specified\
+            \ pattern in the repository expressed in the following format: 2y 7m 15d/14m/1y\
+            \ 50d/etc. The duration value cannot be less than 1 day"
+          title: TimeToLive
+          type: string
+          example: null
+      required:
+      - description
+      - name
+      - pattern
+      - timeToLive
+      title: Description of the Retention Policy type.
+      type: object
+    RetentionPolicies:
+      description: Schema of a collection of Retention Policies objects.
+      items:
+        $ref: '#/components/schemas/retention-policy'
+      title: Retention Policies collection schema
+      type: array
+      example: null
+    ItemImportResults:
+      description: Response schema of content import result.
+      items:
+        $ref: '#/components/schemas/item-import-result'
+      title: Result of content bundle import
+      type: array
+      example: null
+    StatusMessage:
+      properties:
+        message:
+          example: Can not process request
+          type: string
+      required:
+      - message
+      type: object
+      example: null
+    SignedUrlRequest:
+      description: Object containing signed url information for document.
+      example:
+        path: path
+        repositoryId: repositoryId
+        id: id
+      properties:
+        id:
+          description: ID of the existing document to create signed url.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: Path of the document to create signed url.
+          title: Document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which requested signed url document belongs.
+          title: Repository ID
+          type: string
+          example: null
+      required:
+      - repositoryId
+      title: Document Signed URL Request
+      type: object
+    SignedUrlResponse:
+      description: Object containing signed url information for document.
+      example:
+        ttl: ttl
+        url: http://example.com/aeiou
+      properties:
+        url:
+          description: Signed URL.
+          format: url
+          title: Signed URL.
+          type: string
+          example: null
+        ttl:
+          description: Time to live for signed URL.
+          title: TTL.
+          type: string
+          example: null
+      title: Document Signed URL
+      type: object
+    documents-to-move:
+      description: Payload schema to move documents.
+      items:
+        $ref: '#/components/schemas/document-to-move'
+      title: Documents to move schema
+      type: array
+      example: null
+    document-to-move:
+      properties:
+        id:
+          description: ID of the existing document to move.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: New path where to move the document.
+          title: New document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which the document belongs.
+          title: Repository ID
+          type: string
+          example: null
+      required:
+      - id
+      - path
+      - repositoryId
+      title: Document to move
+      type: object
+      example: null
+    remove-request:
+      description: Payload schema to delete documents from a specific repository.
+      properties:
+        repositoryId:
+          description: Repository ID to delete documents from.
+          type: string
+          example: null
+        ids:
+          items:
+            description: Document ID to delete.
+            type: string
+            example: null
+          minItems: 1
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - ids
+      - repositoryId
+      title: Document remove request.
+      type: object
+      example: null
+    search-request:
+      description: Content Api provides search functionality as a replacement for
+        CMIS
+      properties:
+        searchTerm:
+          description: Free text string to be searched
+          maxLength: 765
+          minLength: 1
+          title: searchTerm.
+          type: string
+          example: null
+        paths:
+          description: "List of paths of content to be searched. Folders can be omitted\
+            \ by adding '!' as prefix. For Ex: paths: ['/', '!/Generated content']\
+            \ will search on '/ ' except '!/Generated content'"
+          items:
+            type: string
+            example: null
+          title: Paths.
+          type: array
+          uniqueItems: true
+          example: null
+        repositories:
+          description: List of content repositories to limit the search to
+          items:
+            type: string
+            example: null
+          title: Repositories.
+          type: array
+          uniqueItems: true
+          example: null
+        properties:
+          additionalProperties:
+            type: string
+            example: null
+          description: Map of key/value pairs of property names and the values on
+            which the results should be filtered.
+          title: Properties.
+          type: object
+          example: null
+      type: object
+      example: null
+    query-request:
+      description: Content Api provides querying and relationship resolving features
+        as a replacement for CMIS
+      properties:
+        ids:
+          description: Content ids to be resolved
+          items:
+            type: string
+            example: null
+          title: Ids.
+          type: array
+          uniqueItems: true
+          example: null
+        paths:
+          description: "List of paths of content to be searched. Child folders can\
+            \ be omitted by adding '!' as prefix. For Ex: paths: ['/', '!/Generated\
+            \ content'] will fetch all children of '/ ' except '!/Generated content'"
+          items:
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        repositories:
+          description: List of content repositories to limit the search to. Skipping
+            this property or specifying multiple repositories is not recommended for
+            performance reasons. Not specified repository is deprecated.
+          items:
+            type: string
+            example: null
+          title: Repositories.
+          type: array
+          uniqueItems: true
+          example: null
+        loadContentForTypes:
+          description: List of Cmis Types for which content should be loaded
+          items:
+            description: Cmis Types
+            title: Cmis Type.
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        loadContentForMimeTypes:
+          description: List of mimeTypes for which content should be loaded
+          items:
+            type: string
+            example: null
+          type: array
+          uniqueItems: true
+          example: null
+        loadTargetRelationships:
+          default: false
+          description: Load the target relationships of fetched items
+          type: boolean
+          example: null
+        loadSourceRelationships:
+          default: true
+          description: Load the source relationships of fetched items
+          type: boolean
+          example: null
+        loadRecursiveRelationships:
+          default: true
+          description: Load all relationships of fetched items recursively
+          type: boolean
+          example: null
+        loadProperties:
+          default: false
+          description: Should load all properties of the fetched items
+          type: boolean
+          example: null
+        inlineRelationshipsContent:
+          default: true
+          description: If relationships content should be resolved and inlined in
+            the related json content
+          type: boolean
+          example: null
+        loadRenditions:
+          default: false
+          description: 'Load all renditions of fetched items '
+          type: boolean
+          example: null
+        loadChildren:
+          default: false
+          description: Should load the children of fetched content
+          type: boolean
+          example: null
+        loadVersions:
+          default: false
+          description: List of all version belonging to specific document.
+          title: Load all versions.
+          type: boolean
+          example: null
+      title: Content Api schema.
+      type: object
+      example: null
+    duplicate-request:
+      additionalProperties: false
+      description: Payload schema to duplicate documents in a specific repository.
+      properties:
+        repositoryId:
+          description: Repository ID to duplicate documents in.
+          type: string
+          example: null
+        rootFolder:
+          description: Root folder in which original documents should be searched
+            for. Default is /
+          type: string
+          example: null
+        contents:
+          description: All documents to duplicate in this request.
+          items:
+            $ref: '#/components/schemas/item-to-duplicate'
+          title: Documents to duplicate
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - contents
+      - repositoryId
+      title: Content Api Duplicate Request Schema
+      type: object
+      example: null
+    duplicate-response:
+      description: Response payload with duplicated documents information.
+      properties:
+        contents:
+          description: All duplicated documents under request.
+          items:
+            $ref: '#/components/schemas/duplicated-item'
+          title: Duplicated documents
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - contents
+      title: Content Api Duplicate Response Schema
+      type: object
+      example: null
+    documents:
+      description: List of Documents. Result query from the content api
+      items:
+        $ref: '#/components/schemas/document'
+      type: array
+      uniqueItems: true
+      example: null
+    document-upload:
+      properties:
+        targetPath:
+          description: Path where the item should be added.
+          type: string
+          example: null
+        file:
+          description: File to upload.
+          format: binary
+          type: string
+          example: null
+        name:
+          description: File name.
+          type: string
+          example: null
+        cmis:objectTypeId:
+          description: Document Object Type ID property.
+          enum:
+          - cmis:document
+          type: string
+          example: null
+        cmis:createdBy:
+          description: Document created by property.
+          type: string
+          example: null
+        cmis:lastModifiedBy:
+          description: Document last modified by property.
+          type: string
+          example: null
+        bb:title:
+          description: Document title property.
+          type: string
+          example: null
+        bb:locale:
+          description: Document locale property.
+          type: string
+          example: null
+        changeToken:
+          description: Document change token property.
+          type: string
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+      required:
+      - file
+      - name
+      - targetPath
+      title: Document upload
+      type: object
+      example: null
+    document:
+      description: Content Services Document
+      example:
+        length: 0
+        mimeType: application/json; charset=utf-8
+        type: type
+        creationDate: 2000-01-23T04:56:07.000+00:00
+        createSignedUrl: false
+        content: content
+        path: path
+        relationships:
+        - toRepositoryId: toRepositoryId
+          from: from
+          id: id
+          to: to
+        - toRepositoryId: toRepositoryId
+          from: from
+          id: id
+          to: to
+        lastModificationDate: 2000-01-23T04:56:07.000+00:00
+        versionLabel: versionLabel
+        children:
+        - null
+        - null
+        versions:
+        - null
+        - null
+        repositoryId: repositoryId
+        renditions:
+        - renditionDocumentId: renditionDocumentId
+          streamId: streamId
+          kind: kind
+          originalDocumentId: originalDocumentId
+          length: 6
+          width: 5
+          links:
+            key:
+              key: "{}"
+          mimeType: mimeType
+          title: title
+          height: 1
+        - renditionDocumentId: renditionDocumentId
+          streamId: streamId
+          kind: kind
+          originalDocumentId: originalDocumentId
+          length: 6
+          width: 5
+          links:
+            key:
+              key: "{}"
+          mimeType: mimeType
+          title: title
+          height: 1
+        links:
+          key:
+            key: "{}"
+        id: id
+        signedUrl:
+          ttl: ttl
+          url: http://example.com/aeiou
+        properties:
+          key: "{}"
+      properties:
+        path:
+          description: Content Path.
+          title: Path.
+          type: string
+          example: null
+        id:
+          description: Content unique id.
+          title: Id.
+          type: string
+          example: null
+        repositoryId:
+          description: Repository which the socument belongs to.
+          title: RepositoryId.
+          type: string
+          example: null
+        type:
+          description: The cmis type of this document.
+          title: Type.
+          type: string
+          example: null
+        versionLabel:
+          description: The version label for this document.
+          title: Version Label.
+          type: string
+          example: null
+        creationDate:
+          description: "Date / time of creation, ISO format."
+          format: date-time
+          title: Creation timestamp.
+          type: string
+          example: null
+        lastModificationDate:
+          description: "Date / time of last modification, ISO format."
+          format: date-time
+          title: Modification timestamp.
+          type: string
+          example: null
+        properties:
+          additionalProperties:
+            type: object
+            example: null
+          description: List of cmis properties of this document.
+          title: Properties.
+          type: object
+          example: null
+        content:
+          description: Content of the document
+          title: Content
+          type: string
+          example: null
+        mimeType:
+          default: application/json; charset=utf-8
+          description: Content mime type
+          type: string
+          example: null
+        length:
+          description: Length of the document.
+          format: int64
+          title: Length.
+          type: integer
+          example: null
+        renditions:
+          description: All the renditions of this Document.
+          items:
+            $ref: '#/components/schemas/rendition'
+          title: Renditions.
+          type: array
+          uniqueItems: true
+          example: null
+        children:
+          description: This document's children list.
+          items:
+            $ref: '#/components/schemas/document'
+          title: Children.
+          type: array
+          uniqueItems: true
+          example: null
+        relationships:
+          description: All the relationship to/from this document
+          items:
+            $ref: '#/components/schemas/document-relationship'
+          title: Relationships.
+          type: array
+          uniqueItems: true
+          example: null
+        versions:
+          description: All versions of this document
+          items:
+            $ref: '#/components/schemas/document'
+          title: Versions.
+          type: array
+          uniqueItems: true
+          example: null
+        links:
+          additionalProperties:
+            additionalProperties:
+              type: object
+              example: null
+            type: object
+            example: null
+          description: All the different links to the document
+          title: Links
+          type: object
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+        signedUrl:
+          $ref: '#/components/schemas/document-signed-url-response'
+      title: A Document.
+      type: object
+    documents-to-save:
+      description: Payload schema to create or update documents.
+      items:
+        $ref: '#/components/schemas/document-to-save'
+      title: Content Api schema
+      type: array
+      example: null
+    document-to-save:
+      description: CMIS Document to create or update
+      properties:
+        id:
+          description: ID of the existing document to update.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: Path of the document to create or update. Folders in the path
+            will be created automatically if needed.
+          title: Document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which updating or creating document belongs.
+          title: Repository ID
+          type: string
+          example: null
+        type:
+          default: bb:structuredcontent
+          description: The cmis type of the document
+          title: Type of the document
+          type: string
+          example: null
+        content:
+          description: Content of the document to create or update
+          title: Content
+          type: string
+          example: null
+        mimeType:
+          default: application/json; charset=utf-8
+          description: Content mime type
+          type: string
+          example: null
+        length:
+          description: Content length
+          format: int64
+          title: Length
+          type: integer
+          example: null
+        properties:
+          additionalProperties:
+            type: object
+            example: null
+          description: Optional content item properties
+          title: Content item properties
+          type: object
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+      required:
+      - repositoryId
+      title: Document
+      type: object
+      example: null
+    items-to-revert:
+      description: Payload schema to revert documents to a specific versions.
+      items:
+        $ref: '#/components/schemas/item-to-revert'
+      title: Content Api schema
+      type: array
+      example: null
+    item-to-revert:
+      description: Schema to revert to a specific version of the Document
+      properties:
+        repositoryId:
+          description: Repository ID to revert version of documents from.
+          type: string
+          example: null
+        id:
+          description: Document ID to revert.
+          type: string
+          example: null
+        version:
+          description: Version label to revert to.
+          type: string
+          example: null
+      required:
+      - id
+      - repositoryId
+      - version
+      title: Object that specifies the reference to certain version of object
+      type: object
+      example: null
+    rendition:
+      description: Rendition definition.
+      example:
+        renditionDocumentId: renditionDocumentId
+        streamId: streamId
+        kind: kind
+        originalDocumentId: originalDocumentId
+        length: 6
+        width: 5
+        links:
+          key:
+            key: "{}"
+        mimeType: mimeType
+        title: title
+        height: 1
+      properties:
+        streamId:
+          description: The rendition's stream id.
+          title: StreamId.
+          type: string
+          example: null
+        mimeType:
+          description: The rendition's mimeType.
+          title: MimeType.
+          type: string
+          example: null
+        length:
+          description: The Renditions length.
+          format: int32
+          title: Length.
+          type: integer
+          example: null
+        title:
+          description: Rendition's title.
+          title: Title.
+          type: string
+          example: null
+        kind:
+          description: The cmis kind of the rendition.
+          title: Kind.
+          type: string
+          example: null
+        height:
+          description: Height of the Rendition (Applicable only for images).
+          format: int32
+          title: Height.
+          type: integer
+          example: null
+        width:
+          description: Width of the Rendition (Applicable only for images).
+          format: int32
+          title: Width.
+          type: integer
+          example: null
+        renditionDocumentId:
+          description: The rendition Document id.
+          title: RenditionDocumentId.
+          type: string
+          example: null
+        originalDocumentId:
+          description: The rendition original Document id.
+          title: OriginalDocumentId.
+          type: string
+          example: null
+        links:
+          additionalProperties:
+            additionalProperties:
+              type: object
+              example: null
+            type: object
+            example: null
+          description: All the links to this Rendition.
+          title: Links
+          type: object
+          example: null
+      title: Rendition.
+      type: object
+    repository:
+      description: CMIS Repository type
+      properties:
+        repositoryId:
+          description: Repository id.
+          title: RepositoryId.
+          type: string
+          example: null
+        name:
+          description: Repository name.
+          type: string
+          example: null
+        description:
+          description: Repository description.
+          type: string
+          example: null
+        isPrivate:
+          default: false
+          description: Whether or not the repository is marked as private within Content
+            Services
+          type: boolean
+          example: null
+        isProtected:
+          default: false
+          description: Whether or not the repository is marked as protected with Access
+            Control
+          type: boolean
+          example: null
+        implementation:
+          description: Storage implementation name
+          type: string
+          example: null
+        versioningEnabled:
+          default: true
+          description: Flag that indicates whether repository versioned
+          type: boolean
+          example: null
+        configData:
+          description: configuration data
+          type: string
+          example: null
+        antivirusScanTrigger:
+          $ref: '#/components/schemas/antivirus-scan-trigger'
+      required:
+      - description
+      - name
+      - repositoryId
+      title: Description of the Repository type.
+      type: object
+      example: null
+    repositories:
+      description: Schema of a collection of Repository objects.
+      items:
+        $ref: '#/components/schemas/repository'
+      title: Repository collection schema
+      type: array
+      example: null
+    resources-import-response:
+      description: Schema of a collection of resource import responses.
+      items:
+        type: string
+        example: null
+      title: Resources import response
+      type: array
+      uniqueItems: true
+      example: null
+    retention-policy:
+      description: Retention Policy type.
+      example:
+        timeToLive: timeToLive
+        name: name
+        pattern: pattern
+        description: description
+        id: id
+      properties:
+        id:
+          description: Retention policy unique Identifier
+          title: Retention Policy Id
+          type: string
+          example: null
+        name:
+          description: Retention policy unique name
+          title: Retention Policy Name
+          type: string
+          example: null
+        pattern:
+          description: Ant Pattern of files to match
+          title: Pattern
+          type: string
+          example: null
+        description:
+          description: Retention policy description.
+          title: Description
+          type: string
+          example: null
+        timeToLive:
+          description: "Specifies the time to live of the files that match the specified\
+            \ pattern in the repository expressed in the following format: 2y 7m 15d/14m/1y\
+            \ 50d/etc. The duration value cannot be less than 1 day"
+          title: TimeToLive
+          type: string
+          example: null
+      required:
+      - description
+      - name
+      - pattern
+      - timeToLive
+      title: Description of the Retention Policy type.
+      type: object
+    retention-policies:
+      description: Schema of a collection of Retention Policies objects.
+      items:
+        $ref: '#/components/schemas/retention-policy'
+      title: Retention Policies collection schema
+      type: array
+      example: null
+    item-import-results:
+      description: Response schema of content import result.
+      items:
+        $ref: '#/components/schemas/item-import-result'
+      title: Result of content bundle import
+      type: array
+      example: null
+    document-signed-url-request:
+      description: Object containing signed url information for document.
+      properties:
+        id:
+          description: ID of the existing document to create signed url.
+          title: Document ID
+          type: string
+          example: null
+        path:
+          description: Path of the document to create signed url.
+          title: Document path
+          type: string
+          example: null
+        repositoryId:
+          description: Repository ID to which requested signed url document belongs.
+          title: Repository ID
+          type: string
+          example: null
+      required:
+      - repositoryId
+      title: Document Signed URL Request
+      type: object
+      example: null
+    document-signed-url-response:
+      description: Object containing signed url information for document.
+      example:
+        ttl: ttl
+        url: http://example.com/aeiou
+      properties:
+        url:
+          description: Signed URL.
+          format: url
+          title: Signed URL.
+          type: string
+          example: null
+        ttl:
+          description: Time to live for signed URL.
+          title: TTL.
+          type: string
+          example: null
+      title: Document Signed URL
+      type: object
+    item-to-duplicate:
+      description: Document to duplicate
+      example:
+        sourceContentId: sourceContentId
+        targetPath: targetPath
+        createSignedUrl: false
+      properties:
+        sourceContentId:
+          description: The id of the document to be duplicated.
+          title: SourceContentId
+          type: string
+          example: null
+        targetPath:
+          description: "The path which the duplicated item should have. If ends with\
+            \ /, original document's name is appended. If not provided, duplicate\
+            \ will be stored in the original folder with name appended with _copy_timestamp"
+          title: Target path
+          type: string
+          example: null
+        createSignedUrl:
+          default: false
+          description: "If storage type supports generation of signed url for given\
+            \ content, setting this to true will generate a signed url for a limited\
+            \ time."
+          title: Create Signed URL for content after its creation
+          type: boolean
+          example: null
+      required:
+      - sourceContentId
+      title: Document to duplicate
+      type: object
+    duplicated-item:
+      description: Duplicated document response.
+      example:
+        duplicatedStatus: true
+        sourceContentId: sourceContentId
+        targetPath: targetPath
+        duplicatedContentId: duplicatedContentId
+        signedUrl:
+          ttl: ttl
+          url: http://example.com/aeiou
+      properties:
+        sourceContentId:
+          description: The id of the original document which was duplicated.
+          title: SourceContentId.
+          type: string
+          example: null
+        duplicatedContentId:
+          description: "The id of the duplicated document. If duplicatedStatus is\
+            \ false, it equals to sourceContentId"
+          title: DuplicatedContentId.
+          type: string
+          example: null
+        targetPath:
+          description: "The path of the duplicated document. If duplicatedStatus is\
+            \ false, it is empty."
+          title: Target path.
+          type: string
+          example: null
+        duplicatedStatus:
+          description: Whether the document was duplicated or not. False only if source
+            document is not in rootFolder
+          title: Duplication status.
+          type: boolean
+          example: null
+        signedUrl:
+          $ref: '#/components/schemas/document-signed-url-response'
+      required:
+      - duplicatedContentId
+      - duplicatedStatus
+      - sourceContentId
+      - targetPath
+      title: Duplicated document response
+      type: object
+    document-relationship:
+      description: Two ways direction relationship between Documents
+      example:
+        toRepositoryId: toRepositoryId
+        from: from
+        id: id
+        to: to
+      properties:
+        id:
+          description: Relationship id.
+          title: Id.
+          type: string
+          example: null
+        from:
+          description: ID of the source Document.
+          title: From.
+          type: string
+          example: null
+        to:
+          description: ID of the target Document.
+          title: To.
+          type: string
+          example: null
+        toRepositoryId:
+          description: ID of the target Repository.
+          title: ToRepositoryId.
+          type: string
+          example: null
+      title: Document Relationship
+      type: object
+    antivirus-scan-trigger:
+      default: NONE
+      description: Trigger type that defines when the antivirus scan is run
+      enum:
+      - NONE
+      - ON_SAVE
+      - ON_QUERY
+      - ON_SAVE_AND_QUERY
+      title: Antivirus scan trigger type
+      type: string
+      example: null
+    item-import-result:
+      example:
+        exception: exception
+        contentItem:
+          contentpath: contentpath
+          bundlepath: bundlepath
+          contentRelationships:
+            sourceId: sourceId
+            referencedContentIds:
+            - repositoryId: repositoryId
+              contentId: contentId
+              relationshipId: relationshipId
+            - repositoryId: repositoryId
+              contentId: contentId
+              relationshipId: relationshipId
+          itemproperties:
+          - propertyType: propertyType
+            propertyId: propertyId
+            value: value
+          - propertyType: propertyType
+            propertyId: propertyId
+            value: value
+        message: message
+      properties:
+        contentItem:
+          $ref: '#/components/schemas/imported-content-item'
+        exception:
+          description: String reperesentation of the error happened during item import.
+          type: string
+          example: null
+        message:
+          description: Failure message.
+          type: string
+          example: null
+      title: Result of importing a single item
+      type: object
+    imported-content-item:
+      example:
+        contentpath: contentpath
+        bundlepath: bundlepath
+        contentRelationships:
+          sourceId: sourceId
+          referencedContentIds:
+          - repositoryId: repositoryId
+            contentId: contentId
+            relationshipId: relationshipId
+          - repositoryId: repositoryId
+            contentId: contentId
+            relationshipId: relationshipId
+        itemproperties:
+        - propertyType: propertyType
+          propertyId: propertyId
+          value: value
+        - propertyType: propertyType
+          propertyId: propertyId
+          value: value
+      properties:
+        contentpath:
+          description: Content path that item supposed to be imported to
+          type: string
+          example: null
+        bundlepath:
+          description: Path in import bundle.
+          type: string
+          example: null
+        contentRelationships:
+          $ref: '#/components/schemas/content-relationships'
+        itemproperties:
+          description: Content item properties.
+          items:
+            $ref: '#/components/schemas/content-item-property'
+          type: array
+          example: null
+      title: Imported content item.
+      type: object
+    content-relationships:
+      description: Maps relationship source with targets
+      example:
+        sourceId: sourceId
+        referencedContentIds:
+        - repositoryId: repositoryId
+          contentId: contentId
+          relationshipId: relationshipId
+        - repositoryId: repositoryId
+          contentId: contentId
+          relationshipId: relationshipId
+      properties:
+        sourceId:
+          description: Identifier of the source object
+          title: SourceId.
+          type: string
+          example: null
+        referencedContentIds:
+          description: List of content relationships for these object
+          items:
+            $ref: '#/components/schemas/relationship-target'
+          title: Referenced content Ids.
+          type: array
+          uniqueItems: true
+          example: null
+      required:
+      - referencedContentIds
+      - sourceId
+      title: Content relationship wrapper.
+      type: object
+    content-item-property:
+      example:
+        propertyType: propertyType
+        propertyId: propertyId
+        value: value
+      properties:
+        propertyId:
+          description: Property Id.
+          type: string
+          example: null
+        value:
+          description: Property value.
+          type: string
+          example: null
+        propertyType:
+          description: Type of property.
+          type: string
+          example: null
+      required:
+      - propertyId
+      - propertyType
+      - value
+      title: Content item property
+      type: object
+    relationship-target:
+      description: Points to the related content item.
+      example:
+        repositoryId: repositoryId
+        contentId: contentId
+        relationshipId: relationshipId
+      properties:
+        relationshipId:
+          description: Relationship id.
+          title: RelationshipId.
+          type: string
+          example: null
+        repositoryId:
+          description: Target repository id.
+          title: RepositoryId.
+          type: string
+          example: null
+        contentId:
+          description: Target content item id.
+          title: ContentId.
+          type: string
+          example: null
+      required:
+      - contentId
+      - relationshipId
+      - repositoryId
+      title: Target of relationship.
+      type: object
+    importResourceBundle_request:
+      properties:
+        file:
+          description: File to upload.
+          format: binary
+          type: string
+          example: null
+      required:
+      - file
+      type: object
+      example: null
+

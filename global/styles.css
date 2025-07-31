@@ -1,0 +1,64 @@
+/* Global white and blue theme */
+body {
+  background: #ffffff !important;
+  color: #1a367b !important;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #1a367b !important;
+}
+
+a, .nav-link, .router-link-active {
+  color: #1a367b !important;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a:hover, .nav-link:hover, .router-link-active:hover {
+  color: #1560bd !important;
+}
+
+button, .btn, .login-btn, .logout-btn, .api-btn, .auth-button {
+  background: #1a367b !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover, .btn:hover, .login-btn:hover, .logout-btn:hover, .api-btn:hover, .auth-button:hover {
+  background: #1560bd !important;
+}
+
+input, select, textarea {
+  border: 1px solid #1a367b !important;
+  border-radius: 4px;
+  padding: 8px;
+  color: #1a367b !important;
+  background: #fff !important;
+}
+
+.auth-container, .login-section, .authenticated-section, .user-info, .api-section, .register-section, .profile-section, .dashboard-section {
+  background: #fff !important;
+  color: #1a367b !important;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(26, 54, 123, 0.05);
+}
+
+/* Remove gradients and dark backgrounds from login/register/profile/dashboard */
+.login-section, .register-section, .profile-section, .dashboard-section {
+  background: #fff !important;
+}
+
+/* For error/success/info messages */
+.error-message {
+  color: #e74c3c !important;
+}
+.success-message {
+  color: #27ae60 !important;
+}
+.info-message {
+  color: #1560bd !important;
+} 

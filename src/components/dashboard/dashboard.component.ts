@@ -1,206 +1,155 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
+import { KeycloakAuthService } from '../../services/keycloak-auth.service';
 import { User } from '../../models/user.model';
 import { LocalContentService } from '../../services/local-content.service';
 import { Repository, Folder, FileItem } from '../../models/content.model';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { CreateExperienceModalComponent } from '../create-experience-modal/create-experience-modal.component';
+import { SidebarComponent } from '../sidebar/sidebar.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    CreateExperienceModalComponent,
+    SidebarComponent,
+  ],
   template: `
     <div class="dashboard-container">
-      <header class="dashboard-header">
-        <div class="header-content">
-          <h1>Dashboard</h1>
-          <div class="user-menu">
-            <div class="user-info">
+      <app-sidebar 
+        [userName]="user?.name || 'User'"
+        [activeItem]="'dashboard'"
+        (sidebarVisibilityChange)="onSidebarVisibilityChange($event)">
+      </app-sidebar>
+      <app-create-experience-modal
+        [show]="showCreateExperienceModal"
+        (close)="showCreateExperienceModal = false"
+        (create)="handleCreateExperience($event)"></app-create-experience-modal>
+      <div class="dashboard-profile-bar top-right-profile-bar">
+        <div class="profile-info-bar">
+          <div class="user-avatar"></div>
               <span class="user-name">{{ user?.name }}</span>
-              <span class="user-email">{{ user?.email }}</span>
+          <button class="logout-btn-blue" (click)="logout()">Logout</button>
             </div>
-            <button class="logout-btn" (click)="logout()">Logout</button>
           </div>
-        </div>
-      </header>
-
-      <div class="dashboard-body">
-        <aside class="sidebar">
-        <button (click)="goToDashboard()" class="card-button">Home</button>
-        <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="card-button">Shared with me</button>
-          <h2>Repositories</h2>
-          <button (click)="showRepoForm = true" *ngIf="!showRepoForm" class="add-btn">Add Repo</button>
-          <form *ngIf="showRepoForm" (ngSubmit)="addRepository()" class="repo-form">
-            <input [(ngModel)]="newRepoName" name="repoName" placeholder="New repository name" required />
-            <button type="submit">Add Repo</button>
-            <button type="button" (click)="showRepoForm = false">Cancel</button>
-          </form>
-          <ul class="repo-list">
-            <li *ngFor="let repo of repositories">
-              <div class="repo-name" (click)="selectRepo(repo)">
-                <span [class.expanded]="repo === selectedRepo">&#9654;</span> {{ repo.name }}
-                <button class="more-btn" (click)="toggleRepoOptions(repo, $event)">...</button>
-                <div *ngIf="repo === repoOptionsRepo" class="repo-options">
-                  <button (click)="showFolderFormRepoId = repo.id; repoOptionsRepo = null">Add Folder</button>
-                  <button (click)="startRenameRepo(repo, $event)">Rename</button>
-                  <button (click)="deleteRepository(repo, $event)">Delete</button>
-                </div>
-              </div>
-              <div *ngIf="repo === renamingRepo">
-                <input [(ngModel)]="renameRepoName" name="renameRepoName" />
-                <button (click)="confirmRenameRepo(repo)">Save</button>
-                <button (click)="cancelRenameRepo()">Cancel</button>
-              </div>
-              <div *ngIf="repo === selectedRepo">
-                <form *ngIf="showFolderFormRepoId === repo.id" (ngSubmit)="addFolder()" class="folder-form child-form">
-                  <input [(ngModel)]="newFolderName" name="folderName" placeholder="New folder name" required />
-                  <button type="submit">Add Folder</button>
-                  <button type="button" (click)="showFolderFormRepoId = null">Cancel</button>
-                </form>
-                <ul class="folder-list">
-                  <li *ngFor="let folder of repo.folders">
-                    <div class="folder-name" (click)="selectFolder(folder)">{{ folder.name }}
-                      <button class="more-btn" (click)="toggleFolderOptions(folder, $event)">...</button>
-                      <div *ngIf="folder === folderOptionsFolder" class="folder-options">
-                        <button (click)="startRenameFolder(folder, $event)">Rename</button>
-                        <button (click)="deleteFolder(folder, $event)">Delete</button>
-                      </div>
-                    </div>
-                    <div *ngIf="folder === renamingFolder">
-                      <input [(ngModel)]="renameFolderName" name="renameFolderName" />
-                      <button (click)="confirmRenameFolder(folder)">Save</button>
-                      <button (click)="cancelRenameFolder()">Cancel</button>
-                    </div>
-                   
-                  </li>
-                </ul>
-              </div>
-            </li>
-          </ul>
-        </aside>
-
+      <div class="dashboard-body" [class.sidebar-visible]="sidebarVisible">
         <main class="dashboard-main">
-        <div *ngIf="selectedFolder" class="dropzone-wrapper">
-  <div class="dropzone-card"
-       (dragover)="onDragOver($event)"
-       (dragleave)="onDragLeave($event)"
-       (drop)="onFileDrop($event)"
-       [class.dragover]="isDragOver">
-       
-    
-    <label class="plus-sign" title="Click to choose file">
-      +
-      <input type="file" (change)="onFileSelected($event)" hidden />
-    </label>
-
-    <div *ngIf="showDropzoneText" class="dropzone-text">
-      Drag & drop a file here or click + to add to '{{selectedFolder.name}}'
+          <div class="dashboard-header-row">
+            <span class="back-arrow">←</span>
+            <h2 class="dashboard-title">Value content services app</h2>
+            <input class="search-bar" placeholder="Search" />
     </div>
-  </div>
-
-  <!-- File preview stays the same -->
-  <div *ngIf="previewFile" class="file-preview-card">
-    <div *ngIf="previewFile.type === 'png'">
-      <img [src]="'data:image/png;base64,' + previewFile.base64"
-           [style.maxWidth.px]="200" [style.maxHeight.px]="200" />
-      <div>Resolution: {{previewFile.width}} x {{previewFile.height}}</div>
-    </div>
-    <div>Name: {{previewFile.name}}</div>
-    <div>Type: {{previewFile.type}}</div>
-    <div>Added by: {{previewFile.addedBy}}</div>
-    <div>Timestamp: {{ previewFile.timestamp | date:'short' }}</div>
-    <button (click)="confirmPreviewUpload()">Confirm Upload</button>
-    <button (click)="cancelPreviewUpload()">Cancel</button>
-  </div>
-
-
-            <div *ngIf="selectedFolder.files.length > 0" class="folder-files-list">
-              <h3>Files in '{{selectedFolder.name}}'</h3>
-              <div class="file-grid">
-                <div class="file-card" *ngFor="let file of selectedFolder.files">
-                  <div class="file-preview">
-                    <img *ngIf="file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg'" [src]="'data:image/' + file.type + ';base64,' + file.content" alt="{{file.name}}" />
-                    <span *ngIf="file.type === 'txt' || file.type === 'json' || file.type === 'xml'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                    <span *ngIf="file.type === 'mp4'" class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                  </div>
-                  <div class="file-info">
-                    <div class="file-name">{{ file.name }}</div>
-                    <div class="file-type">({{ file.type }})</div>
-                    <div class="file-meta">Added by: {{ file.addedBy }}</div>
-                    <div class="file-meta">{{ file.timestamp | date:'short' }}</div>
-                  </div>
-                  <button (click)="previewModalFile = file">Preview</button>
-                  <button (click)="deleteFile(file, $event)">Delete</button>
-                </div>
-              </div>
-              <div *ngIf="previewModalFile" class="preview-modal" (click)="closePreviewModal()">
-                <div class="preview-modal-content" (click)="$event.stopPropagation()">
-                  <button class="close-btn" (click)="closePreviewModal()">&times;</button>
-                  <ng-container [ngSwitch]="previewModalFile.type">
-                    <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
-                    <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
-                    <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + previewModalFile.content" [alt]="previewModalFile.name" />
-                    <embed *ngSwitchCase="'pdf'" [src]="getSafePdfUrl(previewModalFile.content)" type="application/pdf" style="width:80vw; height:60vh; border-radius:8px; background:#fff;" />
-                    <video *ngSwitchCase="'mp4'" controls [src]="'data:video/mp4;base64,' + previewModalFile.content" style="max-width: 100%; max-height: 70vh;"></video>
-                    <pre *ngSwitchCase="'txt'">{{ previewModalFile.content }}</pre>
-                    <pre *ngSwitchCase="'json'">{{ formatJson(previewModalFile.content) }}</pre>
-                    <pre *ngSwitchCase="'xml'">{{ formatXml(previewModalFile.content) }}</pre>
-                  </ng-container>
-                  <div class="file-meta">{{ previewModalFile.name }} ({{ previewModalFile.type }})</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <ng-container *ngIf="!selectedFolder">
-            <!-- Folders grid -->
-            <div class="folders-grid-section">
+          <div class="folders-section">
+            <div class="folders-header">
               <h3>Folders</h3>
-              <div class="folders-grid">
-                <div class="folder-card" *ngFor="let folder of getAllFolders()" (click)="selectFolderFromGrid(folder)">
-                  <div class="folder-icon">📁</div>
-                  <div class="folder-name">{{ folder.name }}</div>
-                  <div class="folder-path">{{ folder.repoName }}/{{ folder.name }}</div>
+              <div class="layout-toggle">
+                <button 
+                  class="layout-btn" 
+                  [class.active]="folderLayout === 'card'"
+                  (click)="folderLayout = 'card'">
+                  <img src="/assets/card.png" alt="Card Layout" class="layout-icon">
+                </button>
+                <button 
+                  class="layout-btn" 
+                  [class.active]="folderLayout === 'grid'"
+                  (click)="folderLayout = 'grid'">
+                  <img src="/assets/grid.png" alt="Grid Layout" class="layout-icon">
+                </button>
+                <button 
+                  class="layout-btn" 
+                  [class.active]="folderLayout === 'table'"
+                  (click)="folderLayout = 'table'">
+                  <img src="/assets/layout.png" alt="Table Layout" class="layout-icon">
+                </button>
+  </div>
+  </div>
+
+            <!-- Single container with dynamic classes for smooth transitions -->
+            <div class="folders-list" [ngClass]="{
+              'folders-card': folderLayout === 'card',
+              'folders-grid': folderLayout === 'grid',
+              'folders-table': folderLayout === 'table'
+            }">
+              <div class="folder-item" *ngFor="let folder of getAllFolders()" [ngClass]="{
+                'folder-card': folderLayout === 'card',
+                'folder-grid-item': folderLayout === 'grid',
+                'folder-table-item': folderLayout === 'table'
+              }">
+                <img src="/assets/open-folder.png" alt="Folder" [ngClass]="{
+                  'folder-icon': folderLayout === 'card' || folderLayout === 'grid',
+                  'folder-icon-small': folderLayout === 'table'
+                }">
+                <div class="folder-content" [ngClass]="{
+                  'folder-details': folderLayout === 'table'
+                }">
+                  <span class="folder-name" [ngClass]="{
+                    'folder-path': folderLayout === 'table'
+                  }">{{ folder.name }}</span>
+                  <span class="folder-path" *ngIf="folderLayout === 'table'">{{ folder.repoName }} / {{ folder.name }}</span>
+                  </div>
+                <span class="folder-files" *ngIf="folderLayout === 'table'">{{ folder.files.length }} files</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="welcome-section">
-              <h2>Welcome back, {{ user?.name }}!</h2>
-              <p>You have successfully logged in to your account.</p>
-            </div>
-            <!-- Recent files section -->
-            <div class="recent-files-section">
-              <h3>Recent Files</h3>
-              <table class="recent-files-table">
-                <thead>
-                  <tr>
-                    <th>Nom</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Propriétaire</th>
-                    <th>Emplacement</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let file of getRecentFiles()"
+          <div class="files-section">
+            <div class="files-header">
+              <h3>Files</h3>
+              <div class="layout-toggle">
+                <button 
+                  class="layout-btn" 
+                  [class.active]="fileLayout === 'card'"
+                  (click)="fileLayout = 'card'">
+                  <img src="/assets/card.png" alt="Card Layout" class="layout-icon">
+                </button>
+                <button 
+                  class="layout-btn" 
+                  [class.active]="fileLayout === 'grid'"
+                  (click)="fileLayout = 'grid'">
+                  <img src="/assets/grid.png" alt="Grid Layout" class="layout-icon">
+                </button>
+                <button 
+                  class="layout-btn" 
+                  [class.active]="fileLayout === 'table'"
+                  (click)="fileLayout = 'table'">
+                  <img src="/assets/layout.png" alt="Table Layout" class="layout-icon">
+                </button>
+                </div>
+              </div>
+            
+            <!-- Single container with dynamic classes for smooth transitions -->
+            <div class="files-list" [ngClass]="{
+              'files-card': fileLayout === 'card',
+              'files-grid': fileLayout === 'grid',
+              'files-table': fileLayout === 'table'
+            }">
+              <div class="file-item" *ngFor="let file of getAllFiles()" [ngClass]="{
+                'file-row': fileLayout === 'card',
+                'file-grid-item': fileLayout === 'grid',
+                'file-table-item': fileLayout === 'table'
+              }"
                       (mouseenter)="showFilePreview(file, $event)"
                       (mousemove)="moveFilePreview($event)"
                       (mouseleave)="hideFilePreview()">
-                    <td>
-                      <span class="file-icon">{{ fileTypeIcon(file.type) }}</span>
-                      <span class="file-name">{{ file.name }}</span>
-                    </td>
-                    <td>{{ file.type | uppercase }}</td>
-                    <td>{{ file.timestamp | date:'dd MMM yyyy, HH:mm' }}</td>
-                    <td>{{ file.addedBy }}</td>
-                    <td>{{ file.repoName }} / {{ file.folderName }}</td>
-                  </tr>
-                </tbody>
-              </table>
+                <img [src]="getFileTypeIcon(file.type)" [alt]="file.type" [ngClass]="{
+                  'file-icon': fileLayout === 'card' || fileLayout === 'grid',
+                  'file-icon-small': fileLayout === 'table'
+                }">
+                <div class="file-content" [ngClass]="{
+                  'file-details': fileLayout === 'table'
+                }">
+                  <span class="file-name" [ngClass]="{
+                    'file-path': fileLayout === 'table'
+                  }">{{ file.name }}</span>
+                  <span class="file-path" *ngIf="fileLayout === 'table'">{{ file.repoName }} / {{ file.folderName }} / {{ file.name }}</span>
             </div>
-            <!-- Floating file preview -->
+                <span class="file-type" *ngIf="fileLayout === 'table'">{{ file.type.toUpperCase() }}</span>
+              </div>
+            </div>
             <div *ngIf="hoveredFile" class="file-hover-preview" [style.left.px]="hoverX" [style.top.px]="hoverY">
               <ng-container [ngSwitch]="hoveredFile.type">
                 <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
@@ -213,873 +162,507 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
                 <pre *ngSwitchCase="'xml'">{{ hoveredFile.content | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
               </ng-container>
             </div>
-            <!-- Floating add button -->
-            <button
-              class="fab"
-              (click)="openAddMenu()"
-              #fabBtn
-              [attr.data-fab-btn]="true"
+          </div>
+          <button class="fab" (click)="showCreateExperienceModal = true" #fabBtn
+            [style.bottom]="'2.5rem'"
+            [style.right]="'2.5rem'"
               (mouseenter)="fabBtnRef = fabBtn"
-              (mouseleave)="fabBtnRef = fabBtn"
-            >
-              <span
-                class="fab-plus"
-                [style.transform]="'translate(' + fabPlusOffsetX + 'px,' + fabPlusOffsetY + 'px)'"
-              >+</span>
+            (mouseleave)="fabBtnRef = fabBtn">
+            <span class="fab-plus" [style.transform]="'translate(' + fabPlusOffsetX + 'px,' + fabPlusOffsetY + 'px)'">+</span>
             </button>
-            <div *ngIf="showAddMenu" class="fab-menu" (clickOutside)="closeAddMenu()">
-              <button (click)="openAddRepo()">Add Repo</button>
-              <button (click)="openAddFolder()">Add Folder</button>
-            </div>
-            <!-- Add Repo Modal -->
-            <div *ngIf="showAddRepoModal" class="modal-overlay" (click)="closeAddRepoModal()">
-              <div class="modal-content" (click)="$event.stopPropagation()">
-                <h3>Add Repository</h3>
-                <input [(ngModel)]="newRepoName" placeholder="Repository name" />
-                <button (click)="addRepoFromModal()">Add</button>
-                <button (click)="closeAddRepoModal()">Cancel</button>
-              </div>
-            </div>
-            <!-- Add Folder Modal -->
-            <div *ngIf="showAddFolderModal" class="modal-overlay" (click)="closeAddFolderModal()">
-              <div class="modal-content" (click)="$event.stopPropagation()">
-                <h3>Add Folder</h3>
-                <div class="add-folder-mode-toggle">
-                  <button [class.active]="addFolderMode === 'existing'" (click)="addFolderMode = 'existing'">Add to Existing Repo</button>
-                  <button [class.active]="addFolderMode === 'new'" (click)="addFolderMode = 'new'">New Repo</button>
-                </div>
-                <ng-container *ngIf="addFolderMode === 'existing'">
-                  <label>Repository:
-                    <select [(ngModel)]="addFolderRepoId">
-                      <option *ngFor="let repo of repositories" [value]="repo.id">{{ repo.name }}</option>
-                    </select>
-                  </label>
-                </ng-container>
-                <ng-container *ngIf="addFolderMode === 'new'">
-                  <input [(ngModel)]="newRepoNameForFolder" placeholder="New repository name" />
-                </ng-container>
-                <input [(ngModel)]="newFolderName" placeholder="Folder name" />
-                <button (click)="confirmAddFolder()">Add</button>
-                <button (click)="closeAddFolderModal()">Cancel</button>
-              </div>
-            </div>
-          </ng-container>
         </main>
       </div>
     </div>
   `,
   styles: [`
+    :host {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      color: #1a202c;
+    }
     .dashboard-container {
       min-height: 100vh;
-      background: #2a3441;
+      background: #f7f9fb;
       display: flex;
       flex-direction: column;
+    }
+    .dashboard-profile-bar.top-right-profile-bar {
+      width: 100%;
+      background: #f7f9fb;
+      box-shadow: none;
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+    .profile-info-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .user-avatar::before {
+      content: '';
+      display: block;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      background: #cbd5e1;
+      border-radius: 50%;
+      transform: translate(-50%, -60%);
+    }
+    .user-avatar::after {
+      content: '';
+      display: block;
+      position: absolute;
+      left: 50%;
+      top: 70%;
+      width: 20px;
+      height: 8px;
+      background: #cbd5e1;
+      border-radius: 8px 8px 12px 12px;
+      transform: translate(-50%, -50%);
+    }
+    .user-name {
+      font-weight: 600;
+      color: #1a202c;
+      font-size: 1.05rem;
+    }
+    .logout-btn-blue {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+      transition: background 0.2s;
+    }
+    .logout-btn-blue:hover {
+      background: #1746a2;
     }
     .dashboard-body {
       display: flex;
       flex-direction: row;
       width: 100%;
       min-height: 0;
-      position: relative;
+      margin-top: 64px;
+      margin-left: 0;
+      background: #f7f9fb;
+      transition: margin-left 0.3s ease;
     }
-    .sidebar {
-      width: 48px; /* collapsed width */
-      background: #22304a;
-      color: #fff;
-      border-radius: 0 12px 12px 0;
-      margin-right: 2rem;
-      padding: 1.5rem 0.2rem;
-      min-height: 100vh;
-      height: 100vh;
-      position: fixed;
-      top: 72px; /* Height of the header, adjust if needed */
-      left: 0;
-      z-index: 100;
-      box-shadow: 2px 0 12px rgba(0,0,0,0.08);
-      transition: width 0.3s cubic-bezier(0.4,0,0.2,1), padding 0.3s cubic-bezier(0.4,0,0.2,1);
-      overflow-x: hidden;
-      cursor: pointer;
-      /* Add extra space between sidebar elements */
-    }
-    .sidebar:hover {
-      width: 360px; /* expanded width */
-      padding: 1.5rem 1rem;
-      cursor: default;
-    }
-    .sidebar * {
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
-    }
-    .sidebar:hover * {
-      opacity: 1;
-      pointer-events: auto;
-      transition: opacity 0.2s 0.1s;
-    }
-    .sidebar h2 {
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    .sidebar:hover h2 {
-      opacity: 1;
-      transition: opacity 0.2s 0.1s;
-    }
-    .repo-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .repo-list > li {
-      margin-bottom: 1.2rem;
-    }
-    .repo-name {
-      cursor: pointer;
-      font-weight: 600;
-      margin-bottom: 0.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border: 2px solid white;
-      border-radius: 8px;
-      padding: 0.5rem 0.7rem;
-      background: rgba(255,255,255,0.03);
-      transition: border 0.2s, background 0.2s;
-    }
-    .repo-name:hover, .repo-name:focus {
-      background: rgba(255,255,255,0.08);
-      border-color: #F87060;
-    }
-    .repo-name span {
-      display: inline-block;
-      transition: transform 0.2s;
-    }
-    .repo-name span.expanded {
-      transform: rotate(90deg);
-    }
-    .folder-list {
-      list-style: none;
-      padding-left: 1.5rem;
-      margin: 0.25rem 0 0.5rem 0;
-    }
-    .folder-list > li {
-      margin-bottom: 0.7rem;
-    }
-    .folder-list li {
-      font-size: 0.98rem;
-      margin-bottom: 0.15rem;
-      color: #b0c4de;
-    }
-    .folder-name {
-      position: relative;
-      border: 2px solid white;
-      border-radius: 8px;
-      padding: 0.35rem 0.6rem;
-      background: rgba(255,255,255,0.02);
-      margin-bottom: 0.2rem;
-      transition: border 0.2s, background 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .folder-name:hover, .folder-name:focus {
-      background: rgba(255,255,255,0.08);
-      border-color: #F87060;
-    }
-    .folder-name span {
-      display: inline-block;
-      transition: transform 0.2s;
-    }
-    .folder-name span.expanded {
-      transform: rotate(90deg);
-    }
-    @media (max-width: 900px) {
-      .dashboard-body {
-        flex-direction: column;
-      }
-      .sidebar {
-        position: static;
-        width: 100%;
-        height: auto;
-        border-radius: 12px;
-        margin-right: 0;
-        margin-bottom: 2rem;
-      }
-      .dashboard-main {
-        margin-left: 0;
-      }
-    }
-    .dashboard-header {
-      background: #102542;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 1rem 0;
-      position: relative;
-      z-index: 200;
-    }
-
-    .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .dashboard-header h1 {
-      margin: 0;
-      color: white;
-      font-size: 1.5rem;
-      font-weight: 600;
-    }
-
-    .user-menu {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .user-info {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
-
-    .user-name {
-      font-weight: 600;
-      color: white;
-    }
-
-    .user-email {
-      font-size: 0.85rem;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .logout-btn {
-      background: #e74c3c;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s ease;
-    }
-
-    .logout-btn:hover {
-      background: #c0392b;
+    
+    .dashboard-body.sidebar-visible {
+      margin-left: 260px;
     }
 
     .dashboard-main {
-      margin-left: 48px; /* match collapsed width */
-      width: 100%;
-      transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
-    }
-    .sidebar:hover ~ .dashboard-main {
-      margin-left: 360px; /* match expanded width */
-    }
-
-    .welcome-section {
-      text-align: center;
-      margin-bottom: 3rem;
-    }
-
-    .welcome-section h2 {
-      color: white;
-      font-size: 2rem;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .welcome-section p {
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 1.1rem;
-      margin: 0;
-    }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 3rem;
-    }
-
-    .dashboard-card {
-      background: #3a4651;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .dashboard-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .card-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-    }
-
-    .dashboard-card h3 {
-      color: white;
-      margin: 0 0 0.5rem 0;
-      font-size: 1.25rem;
-    }
-
-    .dashboard-card p {
-      color: rgba(255, 255, 255, 0.8);
-      margin: 0 0 1rem 0;
-      line-height: 1.5;
-    }
-
-    .card-button {
-      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: transform 0.2s ease;
-      width: 100%;
-    }
-
-    .card-button:hover {
-      transform: translateY(-1px);
-    }
-
-    .stats-section {
-      background: #3a4651;
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .stats-section h3 {
-      color: white;
-      margin: 0 0 1.5rem 0;
-      text-align: center;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .stat-item {
-      text-align: center;
-      padding: 1rem;
-      background: #2a3441;
-      border-radius: 8px;
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #102542;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-label {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.9rem;
-    }
-
-    @media (max-width: 768px) {
-      .header-content {
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .user-menu {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      }
-    }
-    .files-section {
-      background: #3a4651;
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 2rem;
-    }
-    .selected-files-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .selected-files-list li {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.5rem 0;
-      color: #fff;
-      font-size: 1.1rem;
-    }
-    .file-icon {
-      font-size: 1.5rem;
-    }
-    .file-name {
-      font-weight: 500;
-    }
-    .file-type {
-      color: #b0c4de;
-      font-size: 0.95rem;
-    }
-    .repo-form, .folder-form, .file-form {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    .repo-form input, .folder-form input, .file-form input, .repo-form select, .folder-form select {
       flex: 1;
-      padding: 0.75rem 1rem;
-      border: 1px solid #4a5568;
-      border-radius: 6px;
-      background: #3a4651;
-      color: white;
-      font-size: 0.95rem;
-    }
-    .repo-form button, .folder-form button, .file-form button {
-      background: #102542;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s ease;
-    }
-    .repo-form button:hover, .folder-form button:hover, .file-form button:hover {
-      background: #1a367b;
-    }
-    .repo-name button, .folder-name button {
-      background: #e74c3c;
-      color: white;
-      border: none;
-      padding: 0.3rem 0.7rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: background-color 0.2s ease;
-    }
-    .repo-name button:hover, .folder-name button:hover {
-      background: #c0392b;
-    }
-    .repo-name, .folder-name {
-      position: relative;
-    }
-    .more-btn {
-      background: transparent;
-      border: none;
-      color: #fff;
-      font-size: 1.2rem;
-      margin-left: 0.5rem;
-      cursor: pointer;
-      padding: 0 0.25rem;
-      box-shadow: none;
-      outline: none;
-      z-index: 20;
-      position: relative;
-    }
-    .more-btn:hover, .more-btn:focus {
-      color: #F87060;
-      background: transparent;
-      outline: none;
-      box-shadow: none;
-    }
-    .repo-options, .folder-options {
-      display: flex;
-      flex-direction: column;
-      background: #34405a;
-      border-radius: 6px;
-      position: absolute;
-      z-index: 30;
-      left: 0;
-      top: 2.1rem;
-      min-width: 120px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-      padding: 0.25rem 0;
-      animation: dropdown-fade-in 0.18s;
-    }
-    .repo-options::before, .folder-options::before {
-      content: '';
-      display: block;
-      position: absolute;
-      top: -8px;
-      left: 18px;
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-bottom: 8px solid #34405a;
-      z-index: 31;
-    }
-    .repo-options button, .folder-options button {
-      background: none;
-      border: none;
-      color: #fff;
-      padding: 0.5rem 1rem;
-      text-align: left;
-      cursor: pointer;
+      padding: 2.5rem 3rem 2rem 3rem;
+      background: #f7f9fb;
+      min-height: 100vh;
       width: 100%;
-      font-size: 0.98rem;
-      transition: background 0.15s;
+      box-sizing: border-box;
     }
-    .repo-options button:hover, .folder-options button:hover {
-      background: #22304a;
-    }
-    @keyframes dropdown-fade-in {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .child-form {
-      margin-left: 1.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 0.5rem;
+    .dashboard-header-row {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-    }
-    .child-form input {
-      width: 120px;
-      font-size: 0.9rem;
-      padding: 0.25rem 0.5rem;
-    }
-    .child-form button {
-      font-size: 0.9rem;
-      padding: 0.25rem 0.75rem;
-    }
-    .dropzone-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 60vh;
-      padding-top: 3rem;
-    }
-    .dropzone-card {
-      width: 340px;
-      height: 220px;
-      background: #22304a;
-      border: 2px dashed #F87060;
-      border-radius: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: border-color 0.2s;
-      margin-bottom: 2rem;
-      position: relative;
-    }
-    .dropzone-card.dragover {
-      border-color: #1abc9c;
-      background: #2a3441;
-    }
-    .plus-sign {
-      font-size: 4rem;
-      color: #F87060;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      cursor: pointer;
-    }
-    .dropzone-text {
-      color: #fff;
-      font-size: 1.1rem;
-      text-align: center;
-    }
-    .folder-files-list {
-      width: 100%;
-      max-width: 600px;
-      margin: 0 auto;
-      background: #3a4651;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .folder-files-list ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .folder-files-list li {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.5rem 0;
-      color: #fff;
-      font-size: 1.1rem;
-    }
-    .file-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 1.5rem;
-      margin-top: 1rem;
+      margin-bottom: 2.5rem;
     }
-    .file-card {
-      background: #22304a;
-      border-radius: 10px;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      color: #fff;
-      position: relative;
-    }
-    .file-preview {
-      width: 100px;
-      height: 100px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 0.5rem;
-    }
-    .file-preview img {
-      max-width: 100%;
-      max-height: 100%;
-      border-radius: 6px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    }
-    .file-icon {
-      font-size: 2.5rem;
-      color: #F87060;
-    }
-    .file-info {
-      text-align: center;
-      margin-bottom: 0.5rem;
-    }
-    .file-name {
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-bottom: 0.2rem;
-    }
-    .file-type {
-      color: #b0c4de;
-      font-size: 0.95rem;
-      margin-bottom: 0.2rem;
-    }
-    .file-meta {
-      color: #b0c4de;
-      font-size: 0.85rem;
-    }
-    .file-card button {
-      background: #e74c3c;
-      color: white;
-      border: none;
-      padding: 0.3rem 0.7rem;
-      border-radius: 4px;
+    .back-arrow {
+      font-size: 1.3rem;
+      color: #64748b;
       cursor: pointer;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      transition: background-color 0.2s ease;
-    }
-    .file-card button:hover {
-      background: #c0392b;
-    }
-    .file-preview-card {
-      background: #3a4651;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      color: white;
-      font-size: 0.95rem;
-    }
-    .file-preview-card img {
-      max-width: 200px;
-      max-height: 200px;
-      border-radius: 8px;
-      margin-bottom: 0.5rem;
-    }
-    .file-preview-card button {
-      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s ease;
-      width: 100%;
-    }
-    .file-preview-card button:hover {
-      background: #1a367b;
-    }
-    .add-btn {
-      background: #1abc9c;
-      color: white;
-      border: none;
-      padding: 0.4rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
       margin-right: 0.5rem;
+    }
+    .dashboard-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0;
+      flex: 1;
+    }
+    .search-bar {
+      background: #f7f9fb;
+      border: none;
+      border-radius: 12px;
+      padding: 0.5rem 1.5rem;
+      font-size: 1rem;
+      width: 320px;
+      color: #1a202c;
+      outline: none;
+      box-shadow: none;
+      margin-right: 1rem;
+    }
+    .create-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
       transition: background 0.2s;
     }
-    .add-btn:hover {
-      background: #16a085;
+    .create-btn:hover {
+      background: #1746a2;
     }
-    .loading-spinner {
-      border: 6px solid #f3f3f3;
-      border-top: 6px solid #F87060;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      animation: spin 1s linear infinite;
-      margin: 1.5rem auto;
-      display: block;
+    .folders-section {
+      margin-bottom: 2.5rem;
     }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .preview-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.7);
+    .folders-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      z-index: 1000;
+      margin-bottom: 1.5rem;
     }
-    .preview-modal-content {
-      background: #22304a;
-      border-radius: 12px;
-      padding: 2rem 2.5rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-      max-width: 90vw;
-      max-height: 80vh;
-      overflow: auto;
+    .folders-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1a202c;
+    }
+    .layout-toggle {
+      display: flex;
+      gap: 0.5rem;
       position: relative;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .preview-modal-content img, .preview-modal-content video {
-      max-width: 80vw;
-      max-height: 60vh;
+      background: #e5e7eb;
       border-radius: 8px;
-      margin-bottom: 1rem;
+      padding: 0.25rem;
     }
-    .preview-modal-content pre {
-      background: #2a3441;
-      color: #fff;
-      padding: 1rem;
-      border-radius: 8px;
-      max-width: 70vw;
-      max-height: 50vh;
-      overflow: auto;
-      margin-bottom: 1rem;
-      font-size: 1rem;
-    }
-    .close-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 1rem;
-      background: none;
+    .layout-btn {
+      background: transparent;
+      color: #4b5563;
       border: none;
-      color: #fff;
-      font-size: 2rem;
+      border-radius: 6px;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.9rem;
+      font-weight: 600;
       cursor: pointer;
-      z-index: 10;
-    }
-    .folders-grid-section {
-      margin-bottom: 2rem;
-    }
-    .folders-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1.2rem;
-      margin-top: 1rem;
-    }
-    .folder-card {
-      background: #22304a;
-      border-radius: 10px;
-      padding: 1rem;
+      transition: all 0.2s ease-in-out;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      gap: 0.3rem;
+      position: relative;
+      min-width: fit-content;
+      }
+    .layout-btn:hover {
+      background: #d1d5db;
+      color: #374151;
+    }
+    .layout-btn.active {
+      background: #2563eb;
       color: #fff;
-      cursor: pointer;
-      transition: background 0.18s, box-shadow 0.18s;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
     }
-    .folder-card:hover {
-      background: #2a3441;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    .layout-btn.active:hover {
+      background: #1d4ed8;
     }
-    .folder-icon {
-      font-size: 2.2rem;
-      margin-bottom: 0.5rem;
+    .layout-icon {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      filter: brightness(0) saturate(100%);
+      transition: filter 0.2s ease-in-out;
     }
-    .folder-path {
-      color: #b0c4de;
-      font-size: 0.92rem;
-      margin-top: 0.2rem;
-      font-style: italic;
-      opacity: 0.85;
+    .layout-btn.active .layout-icon {
+      filter: brightness(0) saturate(100%) invert(1);
     }
-    .repo-name {
-      color: #b0c4de;
-      font-size: 0.95rem;
-    }
-    .recent-files-section {
-      margin-top: 2.5rem;
-      margin-bottom: 2rem;
-    }
-    .recent-files-list {
+    .folders-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 1.2rem;
+      gap: 1rem;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .recent-file-card {
-      background: #22304a;
-      border-radius: 10px;
-      padding: 0.8rem 1.2rem;
-      color: #fff;
+    .folders-list.folders-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+    .folders-list.folders-table {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      min-width: 180px;
-      max-width: 220px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      gap: 0.5rem;
     }
-    .recent-file-card .file-icon {
-      font-size: 1.5rem;
-      margin-bottom: 0.2rem;
+    .folder-item {
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
     }
-    .recent-file-card .file-name {
+    .folder-item.folder-card {
+      background: #f1f6fe;
+      color: #2563eb;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
       font-weight: 600;
       font-size: 1.05rem;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.04);
+      cursor: pointer;
+      border: none;
+      width: auto;
+      height: auto;
+      transform: scale(1);
     }
-    .recent-file-card .file-type {
-      color: #b0c4de;
-      font-size: 0.95rem;
+    .folder-item.folder-card:hover {
+      background: #e7f0fe;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
     }
-    .recent-file-card .file-meta {
-      color: #b0c4de;
-      font-size: 0.85rem;
+    .folder-item.folder-grid-item {
+      background: #f1f6fe;
+      color: #2563eb;
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.04);
+      cursor: pointer;
+      border: none;
+      text-align: center;
+      min-height: 140px;
+      width: 100%;
+      transform: scale(1.1);
+    }
+    .folder-item.folder-grid-item:hover {
+      background: #e7f0fe;
+      transform: translateY(-2px) scale(1.12);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    }
+    .folder-item.folder-table-item {
+      background: #f1f6fe;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      color: #1a202c;
+      font-size: 1.05rem;
+      box-shadow: 0 1px 4px rgba(100, 116, 139, 0.04);
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      transform: scale(0.95);
+    }
+    .folder-item.folder-table-item:hover {
+      background: #e7f0fe;
+      transform: translateX(4px) scale(0.97);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+    }
+    .folders-table .folder-icon-small {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+    .folders-table .folder-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .folders-table .folder-name {
+      font-weight: 600;
+      color: #1a202c;
+      font-size: 1rem;
+    }
+    .folders-table .folder-path {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .folders-table .folder-files {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 1rem;
+    }
+    .files-section {
+      margin-bottom: 2.5rem;
+    }
+    .files-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .files-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1a202c;
+    }
+    .files-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .files-list.files-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+    .files-list.files-table {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .file-item {
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
+    }
+    .file-item.file-row {
+      background: #f1f6fe;
+      color: #2563eb;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-weight: 600;
+      font-size: 1.05rem;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.04);
+      cursor: pointer;
+      border: none;
+      width: auto;
+      height: auto;
+      transform: scale(1);
+    }
+    .file-item.file-row:hover {
+      background: #e7f0fe;
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    }
+    .file-item.file-grid-item {
+      background: #f1f6fe;
+      color: #2563eb;
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.04);
+      cursor: pointer;
+      border: none;
+      text-align: center;
+      min-height: 140px;
+      width: 100%;
+      transform: scale(1.1);
+    }
+    .file-item.file-grid-item:hover {
+      background: #e7f0fe;
+      transform: translateY(-2px) scale(1.12);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    }
+    .file-item.file-table-item {
+      background: #f1f6fe;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      color: #1a202c;
+      font-size: 1.05rem;
+      box-shadow: 0 1px 4px rgba(100, 116, 139, 0.04);
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      transform: scale(0.95);
+    }
+    .file-item.file-table-item:hover {
+      background: #e7f0fe;
+      transform: translateX(4px) scale(0.97);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+    }
+    .files-table .file-icon-small {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+    }
+    .files-table .file-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .files-table .file-name {
+      font-weight: 600;
+      color: #1a202c;
+      font-size: 1rem;
+    }
+    .files-table .file-path {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .files-table .file-type {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 1rem;
+    }
+    .file-hover-preview {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      z-index: 1000;
+      max-width: 200px;
+      max-height: 150px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .file-hover-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+    .hover-pdf-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #2563eb;
+    }
+    .hover-pdf-icon div {
+      font-size: 0.75rem;
+      text-align: center;
+      margin-top: 5px;
+      color: #64748b;
     }
     .fab {
       overflow: hidden;
@@ -1089,11 +672,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       width: 64px;
       height: 64px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #102542 0%, #F87060 100%);
+      background: #1a367b;
       color: #fff;
       font-size: 2.5rem;
       border: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      box-shadow: 0 4px 16px rgba(26, 54, 123, 0.18);
       cursor: pointer;
       z-index: 1200;
       display: flex;
@@ -1102,89 +685,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       transition: background 0.18s;
     }
     .fab:hover {
-      background: linear-gradient(135deg, #F87060 0%, #102542 100%);
-    }
-    .fab-menu {
-      position: fixed;
-      bottom: 7.5rem;
-      right: 2.5rem;
-      background: #22304a;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-      padding: 1rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      z-index: 1201;
-    }
-    .fab-menu button {
-      background: none;
-      border: none;
-      color: #fff;
-      font-size: 1.1rem;
-      cursor: pointer;
-      padding: 0.5rem 0;
-      text-align: left;
-      transition: color 0.18s;
-    }
-    .fab-menu button:hover {
-      color: #F87060;
-    }
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1300;
-    }
-    .modal-content {
-      background: #22304a;
-      border-radius: 12px;
-      padding: 2rem 2.5rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      min-width: 320px;
-      max-width: 90vw;
-    }
-    .recent-files-table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #22304a;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-top: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    .recent-files-table th, .recent-files-table td {
-      padding: 0.85rem 1.2rem;
-      text-align: left;
-      color: #fff;
-      font-size: 1rem;
-    }
-    .recent-files-table th {
-      background: #2a3441;
-      font-weight: 600;
-      border-bottom: 2px solid #34405a;
-    }
-    .recent-files-table tr:not(:last-child) td {
-      border-bottom: 1px solid #34405a;
-    }
-    .recent-files-table .file-icon {
-      font-size: 1.3rem;
-      margin-right: 0.5rem;
-      vertical-align: middle;
-    }
-    .recent-files-table .file-name {
-      font-weight: 500;
-      vertical-align: middle;
+      background: #1560bd;
     }
     .fab-plus {
       display: inline-block;
@@ -1192,66 +693,102 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       font-size: 2.5rem;
       pointer-events: none;
       user-select: none;
+      color: #fff;
     }
-    .add-folder-mode-toggle {
+    @media (max-width: 900px) {
+      .dashboard-main {
+        padding: 2.5rem 1rem 2rem 1rem;
+        margin-left: 0;
+      }
+      .dashboard-body {
+        margin-left: 0 !important;
+      }
+      .dashboard-body.sidebar-visible {
+        margin-left: 0 !important;
+    }
+      .dashboard-profile-bar.top-right-profile-bar {
+        padding: 0 1rem;
+      }
+    }
+    .folder-icon, .folder-icon-small {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      transition: transform 0.3s ease-in-out;
+    }
+    .folder-icon-small {
+      width: 20px;
+      height: 20px;
+    }
+    .folder-content {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      align-items: center;
+      gap: 0.7rem;
     }
-    .add-folder-mode-toggle button {
-      background: #2a3441;
-      color: #fff;
-      border: none;
-      padding: 0.5rem 1.2rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background 0.18s, color 0.18s;
-    }
-    .add-folder-mode-toggle button.active, .add-folder-mode-toggle button:hover {
-      background: #F87060;
-      color: #fff;
-    }
-    .file-hover-preview {
-      position: fixed;
-      z-index: 2000;
-      pointer-events: none;
-      background: #22304a;
-      color: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-      padding: 0.7rem 1rem;
-      min-width: 120px;
-      max-width: 260px;
-      max-height: 160px;
-      overflow: hidden;
-      font-size: 0.98rem;
+    .folder-content.folder-details {
+      flex: 1;
       display: flex;
       flex-direction: column;
+    }
+    .folder-name {
+      font-weight: 600;
+      color: #2563eb;
+      font-size: 1.05rem;
+    }
+    .folder-name.folder-path {
+      font-weight: 600;
+      color: #1a202c;
+      font-size: 1rem;
+    }
+    .folder-path {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .folder-files {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 1rem;
+    }
+    .file-icon, .file-icon-small {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      transition: transform 0.3s ease-in-out;
+    }
+    .file-icon-small {
+      width: 20px;
+      height: 20px;
+    }
+    .file-content {
+      display: flex;
       align-items: center;
-      transition: opacity 0.12s;
+      gap: 0.7rem;
     }
-    .file-hover-preview img, .file-hover-preview video {
-      max-width: 120px;
-      max-height: 80px;
-      border-radius: 6px;
-      margin-bottom: 0.3rem;
+    .file-content.file-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
-    .file-hover-preview pre {
-      background: none;
-      color: #fff;
-      font-size: 0.95rem;
-      margin: 0;
-      padding: 0;
-      max-width: 220px;
-      max-height: 80px;
-      overflow: hidden;
-      white-space: pre-wrap;
+    .file-name {
+      font-weight: 600;
+      color: #2563eb;
+      font-size: 1.05rem;
     }
-    .hover-pdf-icon {
-      font-size: 2.2rem;
-      text-align: center;
-      margin-bottom: 0.2rem;
+    .file-name.file-path {
+      font-weight: 600;
+      color: #1a202c;
+      font-size: 1rem;
+    }
+    .file-path {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .file-type {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 1rem;
     }
   `]
 })
@@ -1301,21 +838,26 @@ export class DashboardComponent implements OnInit {
   fabPlusOffsetX = 0;
   fabPlusOffsetY = 0;
   fabBtnRef: HTMLElement | null = null;
+  showCreateExperienceModal = false;
+  sidebarVisible = false;
+  folderLayout: 'card' | 'grid' | 'table' = 'card';
+  fileLayout: 'card' | 'grid' | 'table' = 'card';
 
   // Hover preview state
   hoveredFile: (FileItem & { folderName: string, repoName: string }) | null = null;
   hoverX = 0;
   hoverY = 0;
+  hoverTimeout: any = null;
 
   constructor(
-    private authService: AuthService,
+    private keycloakAuthService: KeycloakAuthService,
     private router: Router,
     private contentService: LocalContentService,
     private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
-    this.user = this.authService.getCurrentUser();
+    this.user = this.keycloakAuthService.getCurrentUser();
     this.loadRepositories();
     document.addEventListener('click', this.handleClickOutside.bind(this));
     document.addEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
@@ -1325,6 +867,12 @@ export class DashboardComponent implements OnInit {
     document.removeEventListener('click', this.handleClickOutside.bind(this));
     document.removeEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
     document.removeEventListener('mouseleave', this.handleGlobalMouseLeave.bind(this));
+    
+    // Clear any pending hover timeout
+    if (this.hoverTimeout) {
+      clearTimeout(this.hoverTimeout);
+      this.hoverTimeout = null;
+    }
   }
   handleClickOutside(event: MouseEvent): void {
     const target = event.target as HTMLElement;
@@ -1529,7 +1077,6 @@ export class DashboardComponent implements OnInit {
       else if (ext === 'txt') type = 'txt';
       else if (ext === 'mp4') type = 'mp4';
       else if (ext === 'pdf') type = 'pdf';
-      // skip if not allowed
       if (!allowedTypes.includes(type)) continue;
       const addedBy = this.user?.name || this.user?.email || 'Unknown';
       const timestamp = new Date().toISOString();
@@ -1608,27 +1155,8 @@ export class DashboardComponent implements OnInit {
     return Math.random().toString(36).substr(2, 9);
   }
 
-  fileTypeIcon(type: string): string {
-    switch(type) {
-      case 'text': return '📄';
-      case 'js': return '🟨';
-      case 'image': return '🖼️';
-      case 'markdown': return '📝';
-      case 'pdf': return '📕';
-      case 'doc': return '📄';
-      case 'json': return '🟩';
-      case 'xml': return '🟪';
-      case 'png': return '🖼️';
-      case 'jpg': return '🖼️';
-      case 'jpeg': return '🖼️';
-      case 'txt': return '📄';
-      case 'mp4': return '🎬';
-      default: return '📁';
-    }
-  }
-
   logout(): void {
-    this.authService.logout();
+    this.keycloakAuthService.logout();
     this.router.navigate(['/login']);
   }
 
@@ -1660,7 +1188,6 @@ export class DashboardComponent implements OnInit {
     }
   }
   formatXml(content: string): string {
-    // Simple pretty print for XML (not perfect, but better than nothing)
     try {
       const PADDING = '  ';
       const reg = /(>)(<)(\/*)/g;
@@ -1735,7 +1262,7 @@ export class DashboardComponent implements OnInit {
     return this.repositories.flatMap(r => r.folders.map(f => ({ ...f, repoId: r.id, repoName: r.name })));
   }
   // Utility to get recent files (7 most recent)
-  getRecentFiles(): (FileItem & { folderName: string, repoName: string })[] {
+  getAllFiles(): (FileItem & { folderName: string, repoName: string })[] {
     const files: (FileItem & { folderName: string, repoName: string })[] = [];
     for (const repo of this.repositories) {
       for (const folder of repo.folders) {
@@ -1792,7 +1319,7 @@ export class DashboardComponent implements OnInit {
     }
   }
   handleGlobalMouseMove(event: MouseEvent) {
-    // Find the FAB button in the DOM
+    // Handle FAB button movement
     let btn = this.fabBtnRef;
     if (!btn) {
       btn = document.querySelector('[data-fab-btn="true"]') as HTMLElement;
@@ -1813,6 +1340,19 @@ export class DashboardComponent implements OnInit {
     }
     this.fabPlusOffsetX = dx;
     this.fabPlusOffsetY = dy;
+
+    // Handle preview hiding when mouse moves away from file rows
+    // Only check if we have a hovered file to avoid unnecessary processing
+    if (this.hoveredFile) {
+      const target = event.target as HTMLElement;
+      const fileRow = target.closest('.file-row');
+      const filePreview = target.closest('.file-hover-preview');
+      
+      // Don't hide if mouse is over the preview itself or a file row
+      if (!fileRow && !filePreview) {
+        this.hideFilePreview();
+      }
+    }
   }
   handleGlobalMouseLeave() {
     this.fabPlusOffsetX = 0;
@@ -1820,15 +1360,73 @@ export class DashboardComponent implements OnInit {
   }
 
   showFilePreview(file: any, event: MouseEvent) {
+    // Clear any existing timeout
+    if (this.hoverTimeout) {
+      clearTimeout(this.hoverTimeout);
+      this.hoverTimeout = null;
+    }
+    
     this.hoveredFile = file;
     this.hoverX = event.clientX + 16;
     this.hoverY = event.clientY - 16;
   }
+  
   moveFilePreview(event: MouseEvent) {
+    if (this.hoveredFile) {
     this.hoverX = event.clientX + 16;
     this.hoverY = event.clientY - 16;
   }
+  }
+  
   hideFilePreview() {
+    // Only set timeout if we don't already have one
+    if (!this.hoverTimeout) {
+      this.hoverTimeout = setTimeout(() => {
     this.hoveredFile = null;
+        this.hoverX = 0;
+        this.hoverY = 0;
+        this.hoverTimeout = null;
+      }, 150); // Slightly longer delay to prevent flickering
+    }
+  }
+
+  handleCreateExperience(event: any) {
+    // Handle the created experience
+    console.log('Experience created:', event);
+    this.showCreateExperienceModal = false;
+    this.loadRepositories(); // Refresh repositories to include the new one
+  }
+
+  onSidebarVisibilityChange(isVisible: boolean): void {
+    this.sidebarVisible = isVisible;
+  }
+
+  getFileTypeIcon(type: string): string {
+    switch(type) {
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+        return '/assets/img.png';
+      case 'pdf':
+        return '/assets/pdf.png';
+      case 'docx':
+      case 'doc':
+        return '/assets/docx.png';
+      case 'txt':
+        return '/assets/txt-file.png';
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return '/assets/mp4.png';
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return '/assets/zip.png';
+      case 'json':
+      case 'xml':
+        return '/assets/dash.png';
+      default:
+        return '/assets/poste.png';
+    }
   }
 }

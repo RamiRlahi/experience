@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: content-services-app
+  profiles:
+    active: dev
+  security:
+    oauth2:
+      client:
+        registration:
+          backbase:
+            client-id: ${BACKBASE_CLIENT_ID:your-client-id}
+            client-secret: ${BACKBASE_CLIENT_SECRET:your-client-secret}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          backbase:
+            token-uri: ${BACKBASE_TOKEN_URI:https://your-backbase-instance.com/auth/realms/your-realm/protocol/openid-connect/token}
+            authorization-uri: ${BACKBASE_AUTH_URI:https://your-backbase-instance.com/auth/realms/your-realm/protocol/openid-connect/auth}
+
+# Backbase Content Services Configuration
+backbase:
+  content-services:
+    base-url: ${BACKBASE_CONTENT_SERVICES_URL:https://your-backbase-instance.com/content-services}
+    api-version: v3.1.0
+    timeout: 30000
+    retry:
+      max-attempts: 3
+      backoff-delay: 1000
+
+# Logging Configuration
+logging:
+  level:
+    com.example.content.services: DEBUG
+    org.springframework.web.client.RestTemplate: DEBUG
+    com.backbase: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Swagger/OpenAPI Configuration
+springfox:
+  documentation:
+    swagger-ui:
+      enabled: true
+    auto-startup: true 
