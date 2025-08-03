@@ -24,6 +24,7 @@
     </properties>
 
     <dependencies>
+
         <!-- Jackson for JSON processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -200,6 +201,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M7</version>
             </plugin>
+
+            
 
             <!-- Maven JAR Plugin -->
             <plugin>

@@ -116,6 +116,7 @@ export class KeycloakAuthService {
     }
 
     this.clearAuthData();
+    this.clearContentServicesData();
     this.currentUserSubject.next(null);
   }
 
@@ -263,5 +264,18 @@ export class KeycloakAuthService {
         });
       })
     );
+  }
+
+  // Clear content services data for the current user
+  private clearContentServicesData(): void {
+    const user = this.getCurrentUser();
+    if (user) {
+      const userId = user.id || user.email || 'anonymous';
+      const repositoriesKey = `content_services_${userId}_repositories`;
+      const documentsKey = `content_services_${userId}_documents`;
+      
+      localStorage.removeItem(repositoriesKey);
+      localStorage.removeItem(documentsKey);
+    }
   }
 } 

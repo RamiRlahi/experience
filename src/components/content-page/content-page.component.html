@@ -1,0 +1,340 @@
+<div class="content-page-container" 
+     [class.sidebar-visible]="sidebarVisible"
+     [class.drag-over]="isDragOver"
+     (dragover)="onDragOver($event)"
+     (dragenter)="onDragEnter($event)"
+     (dragleave)="onDragLeave($event)"
+     (drop)="onDrop($event)">
+  <!-- Left Sidebar - Repositories and Folders -->
+  <div class="left-sidebar">
+    <div class="sidebar-header">
+      <h3>Repositories</h3>
+      <div class="sidebar-actions">
+        <button class="action-btn-small" (click)="showCreateRepoModal = true" title="Create Repository">
+          +
+        </button>
+        <button class="refresh-btn" (click)="refreshContent()" title="Refresh">
+          ↻
+        </button>
+      </div>
+    </div>
+    
+    <div class="repositories-list">
+      <div 
+        *ngFor="let repo of repositories" 
+        class="repository-item"
+        [class.expanded]="expandedRepos.has(repo.id)">
+        
+        <div class="repository-header" (click)="toggleRepository(repo.id)">
+          <span class="expand-icon">{{ expandedRepos.has(repo.id) ? '▼' : '▶' }}</span>
+          <span class="repo-name">{{ repo.name }}</span>
+          <span class="repo-count">({{ getFolderCount(repo.id) }})</span>
+          <button 
+            class="create-folder-btn" 
+            (click)="openCreateFolderModal(repo.id, $event)"
+            title="Create Folder in {{ repo.name }}">
+            📁+
+          </button>
+        </div>
+        
+        <div class="folders-list" *ngIf="expandedRepos.has(repo.id)">
+          <div 
+            *ngFor="let folder of getFoldersForRepo(repo.id)" 
+            class="folder-item"
+            [class.selected]="selectedFolder?.id === folder.id"
+            (click)="selectFolder(folder)">
+            <span class="folder-icon">📁</span>
+            <span class="folder-name">{{ folder.name }}</span>
+            <span class="folder-count">({{ folder.documentCount }})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="content-main" [class.right-sidebar-visible]="rightSidebarVisible">
+    <div class="content-header">
+      <div class="breadcrumb">
+        <span *ngIf="selectedFolder">
+          {{ getRepositoryName(selectedFolder.repositoryId) }} / {{ selectedFolder.name }}
+        </span>
+        <span *ngIf="!selectedFolder">Select a folder to view files</span>
+      </div>
+      <div class="content-actions">
+        <button class="btn-primary" (click)="toggleRightSidebar()">
+          {{ rightSidebarVisible ? 'Hide' : 'Show' }} Details
+        </button>
+        <button class="btn-secondary" (click)="refreshContent()">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- File List -->
+    <div class="file-list" *ngIf="selectedFolder">
+      <div class="file-list-header">
+        <h3>Files in {{ selectedFolder.name }} ({{ folderFiles.length }})</h3>
+        <div class="view-options">
+          <button 
+            class="view-btn" 
+            [class.active]="viewMode === 'list'"
+            (click)="viewMode = 'list'">
+            List
+          </button>
+          <button 
+            class="view-btn" 
+            [class.active]="viewMode === 'grid'"
+            (click)="viewMode = 'grid'">
+            Grid
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Loading files...</p>
+      </div>
+
+      <!-- Files -->
+      <div *ngIf="!loading" class="files-container" [ngClass]="'view-' + viewMode">
+        <div 
+          *ngFor="let file of folderFiles" 
+          class="file-item"
+          [class.selected]="selectedContent?.id === file.id"
+          (click)="selectContent(file)">
+          
+          <div class="file-icon">
+            <img [src]="getContentIcon(file)" [alt]="file.type" class="icon">
+          </div>
+          
+          <div class="file-info">
+            <div class="file-name">{{ file.name }}</div>
+            <div class="file-meta">
+              <span class="file-size">{{ file.size }}</span>
+              <span class="file-date">{{ formatDate(file.lastModified) }}</span>
+            </div>
+          </div>
+          
+          <div class="file-actions">
+            <button class="action-btn" (click)="viewContent(file, $event)">
+              View
+            </button>
+            <button class="action-btn" (click)="editContent(file, $event)">
+              Edit
+            </button>
+            <button class="action-btn delete" (click)="deleteContent(file, $event)">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!loading && folderFiles.length === 0" class="empty-state">
+        <p>No files found in this folder.</p>
+        <p class="drag-hint">Drag and drop files here to upload them.</p>
+      </div>
+    </div>
+
+    <!-- No Folder Selected State -->
+    <div class="no-selection-state" *ngIf="!selectedFolder">
+      <div class="no-selection-content">
+        <div class="no-selection-icon">📁</div>
+        <h3>Select a Folder</h3>
+        <p>Choose a folder from the sidebar to view its files</p>
+        <p class="drag-hint">Or drag and drop files to upload them to any folder.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div class="right-sidebar" [class.visible]="rightSidebarVisible">
+    <div class="right-sidebar-header">
+      <h3>File Details</h3>
+      <button class="close-btn" (click)="toggleRightSidebar()">×</button>
+    </div>
+    
+    <div class="right-sidebar-content" *ngIf="selectedContent">
+      <div class="detail-section">
+        <h4>Basic Information</h4>
+        <div class="detail-item">
+          <label>Name:</label>
+          <span>{{ selectedContent.name || 'Unnamed' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Type:</label>
+          <span>{{ isFolder(selectedContent) ? 'Folder' : 'File' }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Path:</label>
+          <span>{{ selectedContent.path }}</span>
+        </div>
+        <div class="detail-item">
+          <label>Repository:</label>
+          <span>{{ getRepositoryName(selectedContent.repositoryId) }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Timestamps</h4>
+        <div class="detail-item">
+          <label>Modified:</label>
+          <span>{{ formatDate(selectedContent.lastModified) }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="!isFolder(selectedContent)">
+        <h4>File Information</h4>
+        <div class="detail-item" *ngIf="getFileSize(selectedContent)">
+          <label>Size:</label>
+          <span>{{ getFileSize(selectedContent) }}</span>
+        </div>
+        <div class="detail-item" *ngIf="getFileCreatedBy(selectedContent)">
+          <label>Created By:</label>
+          <span>{{ getFileCreatedBy(selectedContent) }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Actions</h4>
+        <div class="action-buttons">
+          <button class="btn-primary" (click)="downloadContent()">Download</button>
+          <button class="btn-secondary" (click)="shareContent()">Share</button>
+          <button class="btn-secondary" (click)="duplicateContent()">Duplicate</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-sidebar-content" *ngIf="!selectedContent">
+      <p class="no-selection">Select a file to view details</p>
+    </div>
+  </div>
+
+  <!-- Create Repository Modal -->
+  <div class="modal-overlay" *ngIf="showCreateRepoModal" (click)="showCreateRepoModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Create New Repository</h3>
+        <button class="close-btn" (click)="showCreateRepoModal = false">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="repoName">Repository Name:</label>
+          <input 
+            type="text" 
+            id="repoName"
+            [(ngModel)]="newRepoName" 
+            placeholder="Enter repository name"
+            class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="repoDescription">Description (optional):</label>
+          <textarea 
+            id="repoDescription"
+            [(ngModel)]="newRepoDescription" 
+            placeholder="Enter repository description"
+            class="form-textarea"
+            rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="showCreateRepoModal = false">Cancel</button>
+        <button class="btn-primary" (click)="createRepository()" [disabled]="!newRepoName.trim()">
+          Create Repository
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Folder Modal -->
+  <div class="modal-overlay" *ngIf="showCreateFolderModal" (click)="showCreateFolderModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Create New Folder</h3>
+        <button class="close-btn" (click)="showCreateFolderModal = false">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="folderName">Folder Name:</label>
+          <input 
+            type="text" 
+            id="folderName"
+            [(ngModel)]="newFolderName" 
+            placeholder="Enter folder name"
+            class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Repository:</label>
+          <span class="selected-repo">{{ getRepositoryName(selectedRepoForFolder) }}</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="showCreateFolderModal = false">Cancel</button>
+        <button class="btn-primary" (click)="createFolder()" [disabled]="!newFolderName.trim()">
+          Create Folder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Files Modal -->
+  <div class="modal-overlay" *ngIf="showUploadModal" (click)="cancelUpload()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Upload Files</h3>
+        <button class="close-btn" (click)="cancelUpload()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="upload-info">
+          <p><strong>Target Folder:</strong> {{ uploadTargetFolder?.name || 'No folder selected' }}</p>
+          <p><strong>Files to upload:</strong> {{ draggedFiles.length }} file(s)</p>
+        </div>
+        
+        <div class="files-list">
+          <div *ngFor="let file of draggedFiles" class="file-item-upload">
+            <div class="file-info-upload">
+              <span class="file-name-upload">{{ file.name }}</span>
+              <span class="file-size-upload">{{ (file.size / 1024).toFixed(1) }} KB</span>
+            </div>
+            <div class="progress-bar" *ngIf="getUploadProgress(file.name) > 0">
+              <div class="progress-fill" [style.width.%]="getUploadProgress(file.name)"></div>
+              <span class="progress-text">{{ getUploadProgress(file.name) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cancelUpload()">Cancel</button>
+        <button class="btn-primary" (click)="confirmUpload()" [disabled]="!uploadTargetFolder">
+          Upload Files
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag Overlay -->
+  <div class="drag-overlay" *ngIf="isDragOver">
+    <div class="drag-content">
+      <div class="drag-icon">📁</div>
+      <h3>Drop files here to upload</h3>
+      <p>Release to upload files to {{ selectedFolder?.name || 'the selected folder' }}</p>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <button class="fab" (click)="showCreateExperienceModal = true" #fabBtn
+    data-fab-btn="true"
+    (mouseenter)="fabBtnRef = fabBtn"
+    (mouseleave)="fabBtnRef = fabBtn">
+    <span class="fab-plus" [style.transform]="'translate(' + fabPlusOffsetX + 'px,' + fabPlusOffsetY + 'px)'">+</span>
+  </button>
+
+  <!-- Create Experience Modal -->
+  <app-create-experience-modal
+    [show]="showCreateExperienceModal"
+    (close)="showCreateExperienceModal = false"
+    (create)="handleCreateExperience($event)">
+  </app-create-experience-modal>
+</div> 

@@ -1,14 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { KeycloakAuthService } from '../../services/keycloak-auth.service';
 import { User } from '../../models/user.model';
-import { LocalContentService } from '../../services/local-content.service';
-import { Repository, Folder, FileItem } from '../../models/content.model';
+import { DashboardContentService } from '../../services/dashboard-content.service';
+import { Repository, Folder, DashboardFolder, DashboardFile, Document } from '../../models/content.model';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CreateExperienceModalComponent } from '../create-experience-modal/create-experience-modal.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
+import { ContentPageComponent } from '../content-page/content-page.component';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,13 +20,15 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
     FormsModule,
     CreateExperienceModalComponent,
     SidebarComponent,
+    ContentPageComponent,
   ],
   template: `
     <div class="dashboard-container">
       <app-sidebar 
         [userName]="user?.name || 'User'"
-        [activeItem]="'dashboard'"
-        (sidebarVisibilityChange)="onSidebarVisibilityChange($event)">
+        [activeItem]="currentPage"
+        (sidebarVisibilityChange)="onSidebarVisibilityChange($event)"
+        (navigationChange)="onNavigationChange($event)">
       </app-sidebar>
       <app-create-experience-modal
         [show]="showCreateExperienceModal"
@@ -37,16 +41,36 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
           <button class="logout-btn-blue" (click)="logout()">Logout</button>
             </div>
           </div>
-      <div class="dashboard-body" [class.sidebar-visible]="sidebarVisible">
+      <!-- Dashboard Page -->
+      <div class="dashboard-body" [class.sidebar-visible]="sidebarVisible" *ngIf="currentPage === 'dashboard'">
         <main class="dashboard-main">
           <div class="dashboard-header-row">
             <span class="back-arrow">←</span>
             <h2 class="dashboard-title">Value content services app</h2>
-            <input class="search-bar" placeholder="Search" />
+            <input 
+              class="search-bar" 
+              placeholder="Search repositories, folders, and files..." 
+              [(ngModel)]="searchTerm"
+              (keyup.enter)="onSearch()"
+              (input)="onSearch()" />
     </div>
-          <div class="folders-section">
-            <div class="folders-header">
-              <h3>Folders</h3>
+          <!-- Loading State -->
+          <div *ngIf="loading" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading repositories and content...</p>
+          </div>
+
+          <!-- Error State -->
+          <div *ngIf="error" class="error-state">
+            <p class="error-message">{{ error }}</p>
+            <button class="retry-btn" (click)="initializeDashboard()">Retry</button>
+          </div>
+
+          <!-- Content -->
+          <div *ngIf="!loading && !error">
+            <div class="folders-section">
+              <div class="folders-header">
+                <h3>Folders ({{ folders.length }})</h3>
               <div class="layout-toggle">
                 <button 
                   class="layout-btn" 
@@ -75,7 +99,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
               'folders-grid': folderLayout === 'grid',
               'folders-table': folderLayout === 'table'
             }">
-              <div class="folder-item" *ngFor="let folder of getAllFolders()" [ngClass]="{
+              <div class="folder-item" *ngFor="let folder of folders" [ngClass]="{
                 'folder-card': folderLayout === 'card',
                 'folder-grid-item': folderLayout === 'grid',
                 'folder-table-item': folderLayout === 'table'
@@ -90,15 +114,15 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
                   <span class="folder-name" [ngClass]="{
                     'folder-path': folderLayout === 'table'
                   }">{{ folder.name }}</span>
-                  <span class="folder-path" *ngIf="folderLayout === 'table'">{{ folder.repoName }} / {{ folder.name }}</span>
+                  <span class="folder-path" *ngIf="folderLayout === 'table'">{{ folder.repositoryName }} / {{ folder.name }}</span>
                   </div>
-                <span class="folder-files" *ngIf="folderLayout === 'table'">{{ folder.files.length }} files</span>
+                <span class="folder-files" *ngIf="folderLayout === 'table'">{{ folder.documentCount }} items</span>
                   </div>
                 </div>
               </div>
-          <div class="files-section">
-            <div class="files-header">
-              <h3>Files</h3>
+            <div class="files-section">
+              <div class="files-header">
+                <h3>Files ({{ files.length }})</h3>
               <div class="layout-toggle">
                 <button 
                   class="layout-btn" 
@@ -127,7 +151,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
               'files-grid': fileLayout === 'grid',
               'files-table': fileLayout === 'table'
             }">
-              <div class="file-item" *ngFor="let file of getAllFiles()" [ngClass]="{
+              <div class="file-item" *ngFor="let file of files" [ngClass]="{
                 'file-row': fileLayout === 'card',
                 'file-grid-item': fileLayout === 'grid',
                 'file-table-item': fileLayout === 'table'
@@ -135,7 +159,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
                       (mouseenter)="showFilePreview(file, $event)"
                       (mousemove)="moveFilePreview($event)"
                       (mouseleave)="hideFilePreview()">
-                <img [src]="getFileTypeIcon(file.type)" [alt]="file.type" [ngClass]="{
+                <img [src]="file.iconPath" [alt]="file.type" [ngClass]="{
                   'file-icon': fileLayout === 'card' || fileLayout === 'grid',
                   'file-icon-small': fileLayout === 'table'
                 }">
@@ -145,24 +169,47 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
                   <span class="file-name" [ngClass]="{
                     'file-path': fileLayout === 'table'
                   }">{{ file.name }}</span>
-                  <span class="file-path" *ngIf="fileLayout === 'table'">{{ file.repoName }} / {{ file.folderName }} / {{ file.name }}</span>
+                  <span class="file-path" *ngIf="fileLayout === 'table'">{{ file.repositoryName }} / {{ file.folderName }} / {{ file.name }}</span>
             </div>
                 <span class="file-type" *ngIf="fileLayout === 'table'">{{ file.type.toUpperCase() }}</span>
               </div>
             </div>
             <div *ngIf="hoveredFile" class="file-hover-preview" [style.left.px]="hoverX" [style.top.px]="hoverY">
-              <ng-container [ngSwitch]="hoveredFile.type">
-                <img *ngSwitchCase="'png'" [src]="'data:image/png;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
-                <img *ngSwitchCase="'jpg'" [src]="'data:image/jpg;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
-                <img *ngSwitchCase="'jpeg'" [src]="'data:image/jpeg;base64,' + hoveredFile.content" [alt]="hoveredFile.name" />
-                <video *ngSwitchCase="'mp4'" [src]="'data:video/mp4;base64,' + hoveredFile.content" muted autoplay loop style="max-width:120px;max-height:80px;border-radius:6px;"></video>
-                <div *ngSwitchCase="'pdf'" class="hover-pdf-icon">📕<div>{{ hoveredFile.name }}</div></div>
-                <pre *ngSwitchCase="'txt'">{{ hoveredFile.content | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
-                <pre *ngSwitchCase="'json'">{{ formatJson(hoveredFile.content) | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
-                <pre *ngSwitchCase="'xml'">{{ hoveredFile.content | slice:0:100 }}{{ hoveredFile.content.length > 100 ? '...' : '' }}</pre>
-              </ng-container>
+              <div class="preview-header">
+                <strong>{{ hoveredFile.name }}</strong>
+                <span class="file-size">{{ hoveredFile.size }}</span>
+              </div>
+              <div class="preview-content">
+                <ng-container [ngSwitch]="hoveredFile.type">
+                  <div *ngSwitchCase="'png'" class="preview-image">
+                    <img [src]="getFilePreviewUrl(hoveredFile.id)" [alt]="hoveredFile.name" />
+                  </div>
+                  <div *ngSwitchCase="'jpg'" class="preview-image">
+                    <img [src]="getFilePreviewUrl(hoveredFile.id)" [alt]="hoveredFile.name" />
+                  </div>
+                  <div *ngSwitchCase="'jpeg'" class="preview-image">
+                    <img [src]="getFilePreviewUrl(hoveredFile.id)" [alt]="hoveredFile.name" />
+                  </div>
+                  <div *ngSwitchCase="'pdf'" class="hover-pdf-icon">📕<div>{{ hoveredFile.name }}</div></div>
+                  <div *ngSwitchCase="'txt'" class="preview-text">
+                    <pre>{{ getFilePreviewText(hoveredFile.id) | slice:0:100 }}{{ getFilePreviewText(hoveredFile.id).length > 100 ? '...' : '' }}</pre>
+                  </div>
+                  <div *ngSwitchCase="'json'" class="preview-text">
+                    <pre>{{ formatJson(getFilePreviewText(hoveredFile.id)) | slice:0:100 }}{{ getFilePreviewText(hoveredFile.id).length > 100 ? '...' : '' }}</pre>
+                  </div>
+                  <div *ngSwitchCase="'xml'" class="preview-text">
+                    <pre>{{ getFilePreviewText(hoveredFile.id) | slice:0:100 }}{{ getFilePreviewText(hoveredFile.id).length > 100 ? '...' : '' }}</pre>
+                  </div>
+                  <div *ngSwitchDefault class="preview-default">
+                    <p>{{ hoveredFile.type.toUpperCase() }} file</p>
+                    <p>Size: {{ hoveredFile.size }}</p>
+                    <p>Created by: {{ hoveredFile.createdBy }}</p>
+                  </div>
+                </ng-container>
+              </div>
             </div>
           </div>
+          </div> <!-- End of content div -->
           <button class="fab" (click)="showCreateExperienceModal = true" #fabBtn
             [style.bottom]="'2.5rem'"
             [style.right]="'2.5rem'"
@@ -172,6 +219,9 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
             </button>
         </main>
       </div>
+
+      <!-- Content Page -->
+      <app-content-page *ngIf="currentPage === 'content'" [sidebarVisible]="sidebarVisible"></app-content-page>
     </div>
   `,
   styles: [`
@@ -632,23 +682,70 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      padding: 10px;
+      padding: 12px;
       z-index: 1000;
-      max-width: 200px;
-      max-height: 150px;
+      max-width: 250px;
+      max-height: 200px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
       pointer-events: none;
     }
-    .file-hover-preview img {
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .preview-header strong {
+      font-size: 0.9rem;
+      color: #1a202c;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-size {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-left: 8px;
+    }
+
+    .preview-content {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .preview-image img {
       max-width: 100%;
-      max-height: 100%;
+      max-height: 120px;
       object-fit: contain;
-      display: block;
-      margin: 0 auto;
+      border-radius: 4px;
+    }
+
+    .preview-text pre {
+      font-size: 0.8rem;
+      color: #374151;
+      background: #f9fafb;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 0;
+      max-height: 100px;
+      overflow: hidden;
+    }
+
+    .preview-default {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .preview-default p {
+      margin: 4px 0;
     }
     .hover-pdf-icon {
       display: flex;
@@ -790,22 +887,109 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
       color: #64748b;
       margin-left: 1rem;
     }
+
+    /* Loading State */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-state p {
+      color: #64748b;
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    /* Error State */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+
+    .error-message {
+      color: #dc2626;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      max-width: 400px;
+    }
+
+    .retry-btn {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .retry-btn:hover {
+      background: #1d4ed8;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #64748b;
+    }
+
+    .empty-state h3 {
+      margin-bottom: 1rem;
+      color: #374151;
+    }
+
+    .empty-state p {
+      margin-bottom: 2rem;
+    }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   user: User | null = null;
-  repositories: Repository[] = [];
-  selectedRepo: Repository | null = null;
-  selectedFolder: Folder | null = null;
-  selectedFiles: FileItem[] = [];
-  previewModalFile: FileItem | null = null;
+  repositories: any[] = []; // Using 'any' to avoid type conflicts between legacy and API Repository types
+  folders: DashboardFolder[] = [];
+  files: DashboardFile[] = [];
+  selectedRepo: any = null; // Using 'any' to avoid type conflicts between legacy and API Repository types
+  selectedFolder: DashboardFolder | null = null;
+  selectedFiles: DashboardFile[] = [];
+  previewModalFile: DashboardFile | null = null;
+  loading = false;
+  error: string | null = null;
+  searchTerm = '';
+  
+  private destroy$ = new Subject<void>();
 
   // UI state
   newRepoName = '';
   renamingRepo: Repository | null = null;
   renameRepoName = '';
   newFolderName = '';
-  renamingFolder: Folder | null = null;
+  renamingFolder: DashboardFolder | null = null;
   renameFolderName = '';
   newFileName = '';
   newFileType: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' | 'pdf' = 'json';
@@ -813,7 +997,7 @@ export class DashboardComponent implements OnInit {
   newFileBase64 = '';
   isUploading = false;
   repoOptionsRepo: Repository | null = null;
-  folderOptionsFolder: Folder | null = null;
+  folderOptionsFolder: DashboardFolder | null = null;
   isDragOver = false;
   previewFile: {
     name: string;
@@ -840,11 +1024,12 @@ export class DashboardComponent implements OnInit {
   fabBtnRef: HTMLElement | null = null;
   showCreateExperienceModal = false;
   sidebarVisible = false;
+  currentPage: 'dashboard' | 'content' | 'settings' = 'dashboard';
   folderLayout: 'card' | 'grid' | 'table' = 'card';
   fileLayout: 'card' | 'grid' | 'table' = 'card';
 
   // Hover preview state
-  hoveredFile: (FileItem & { folderName: string, repoName: string }) | null = null;
+  hoveredFile: DashboardFile | null = null;
   hoverX = 0;
   hoverY = 0;
   hoverTimeout: any = null;
@@ -852,18 +1037,23 @@ export class DashboardComponent implements OnInit {
   constructor(
     private keycloakAuthService: KeycloakAuthService,
     private router: Router,
-    private contentService: LocalContentService,
-    private sanitizer: DomSanitizer
+    private dashboardContentService: DashboardContentService,
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.user = this.keycloakAuthService.getCurrentUser();
-    this.loadRepositories();
+    this.initializeDashboard();
+    this.setupSubscriptions();
     document.addEventListener('click', this.handleClickOutside.bind(this));
     document.addEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
     document.addEventListener('mouseleave', this.handleGlobalMouseLeave.bind(this));
   }
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
     document.removeEventListener('click', this.handleClickOutside.bind(this));
     document.removeEventListener('mousemove', this.handleGlobalMouseMove.bind(this));
     document.removeEventListener('mouseleave', this.handleGlobalMouseLeave.bind(this));
@@ -884,56 +1074,106 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  loadRepositories(): void {
-    this.repositories = this.contentService.getRepositories();
-    if (this.selectedRepo) {
-      this.selectedRepo = this.repositories.find(r => r.id === this.selectedRepo!.id) || null;
+  public initializeDashboard(): void {
+    this.dashboardContentService.initializeDashboard()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+  }
+
+  private setupSubscriptions(): void {
+    // Subscribe to repositories
+    this.dashboardContentService.repositories$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(repositories => {
+        this.repositories = repositories;
+      });
+
+    // Subscribe to folders
+    this.dashboardContentService.folders$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(folders => {
+        this.folders = folders;
+      });
+
+    // Subscribe to files
+    this.dashboardContentService.files$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(files => {
+        this.files = files;
+      });
+
+    // Subscribe to loading state
+    this.dashboardContentService.loading$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(loading => {
+        this.loading = loading;
+      });
+
+    // Subscribe to error state
+    this.dashboardContentService.error$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(error => {
+        this.error = error;
+      });
+  }
+
+  // Search functionality
+  onSearch(): void {
+    if (this.searchTerm.trim()) {
+      this.dashboardContentService.searchContent(this.searchTerm)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(result => {
+          this.folders = result.folders;
+          this.files = result.files;
+        });
+    } else {
+      this.initializeDashboard();
     }
-    if (this.selectedFolder && this.selectedRepo) {
-      this.selectedFolder = this.selectedRepo.folders.find(f => f.id === this.selectedFolder!.id) || null;
-      this.selectedFiles = this.selectedFolder?.files || [];
-    }
+  }
+
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.initializeDashboard();
   }
 
   // Repository methods
   addRepository(): void {
     if (!this.newRepoName.trim()) return;
-    this.contentService.addRepository(this.newRepoName.trim());
-    this.newRepoName = '';
-    this.loadRepositories();
-    this.showDropzoneText = true;
-    this.showRepoForm = false;
+    this.dashboardContentService.createRepository(this.newRepoName.trim())
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.newRepoName = '';
+          this.showRepoForm = false;
+        },
+        error: (error) => {
+          console.error('Error creating repository:', error);
+        }
+      });
   }
+
   selectRepo(repo: Repository): void {
     this.selectedRepo = repo;
     this.selectedFolder = null;
     this.selectedFiles = [];
   }
-  startRenameRepo(repo: Repository, event: Event): void {
-    event.stopPropagation();
-    this.renamingRepo = repo;
-    this.renameRepoName = repo.name;
-  }
-  confirmRenameRepo(repo: Repository): void {
-    if (!this.renameRepoName.trim()) return;
-    this.contentService.renameRepository(repo.id, this.renameRepoName.trim());
-    this.renamingRepo = null;
-    this.renameRepoName = '';
-    this.loadRepositories();
-  }
-  cancelRenameRepo(): void {
-    this.renamingRepo = null;
-    this.renameRepoName = '';
-  }
+
   deleteRepository(repo: Repository, event: Event): void {
     event.stopPropagation();
-    this.contentService.deleteRepository(repo.id);
-    if (this.selectedRepo?.id === repo.id) {
-      this.selectedRepo = null;
-      this.selectedFolder = null;
-      this.selectedFiles = [];
-    }
-    this.loadRepositories();
+    this.dashboardContentService.deleteRepository(repo.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          if (this.selectedRepo?.id === repo.id) {
+            this.selectedRepo = null;
+            this.selectedFolder = null;
+            this.selectedFiles = [];
+          }
+        },
+        error: (error) => {
+          console.error('Error deleting repository:', error);
+        }
+      });
   }
 
   toggleRepoOptions(repo: Repository, event: Event): void {
@@ -945,108 +1185,75 @@ export class DashboardComponent implements OnInit {
   // Folder methods
   addFolder(): void {
     if (!this.selectedRepo || !this.newFolderName.trim()) return;
-    this.contentService.addFolder(this.selectedRepo.id, this.newFolderName.trim());
-    this.newFolderName = '';
-    this.loadRepositories();
-    this.showDropzoneText = true;
-    this.showFolderFormRepoId = null;
-  }
-  selectFolder(folder: Folder): void{
-    this.selectedFolder = folder;
-    this.selectedFiles = folder.files;
-  }
-  startRenameFolder(folder: Folder, event: Event): void {
-    event.stopPropagation();
-    this.renamingFolder = folder;
-    this.renameFolderName = folder.name;
-  }
-  confirmRenameFolder(folder: Folder): void {
-    if (!this.selectedRepo || !this.renameFolderName.trim()) return;
-    this.contentService.renameFolder(this.selectedRepo.id, folder.id, this.renameFolderName.trim());
-    this.renamingFolder = null;
-    this.renameFolderName = '';
-    this.loadRepositories();
-  }
-  cancelRenameFolder(): void {
-    this.renamingFolder = null;
-    this.renameFolderName = '';
-  }
-  deleteFolder(folder: Folder, event: Event): void {
-    event.stopPropagation();
-    if (!this.selectedRepo) return;
-    this.contentService.deleteFolder(this.selectedRepo.id, folder.id);
-    if (this.selectedFolder?.id === folder.id) {
-      this.selectedFolder = null;
-      this.selectedFiles = [];
-    }
-    this.loadRepositories();
+    this.dashboardContentService.createFolder(this.selectedRepo.id, this.newFolderName.trim())
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.newFolderName = '';
+          this.showFolderFormRepoId = null;
+        },
+        error: (error) => {
+          console.error('Error creating folder:', error);
+        }
+      });
   }
 
-  toggleFolderOptions(folder: Folder, event: Event): void {
+  selectFolder(folder: DashboardFolder): void {
+    this.selectedFolder = folder;
+    // Get files for this specific folder using the API service
+    this.dashboardContentService['contentApiService'].getContentByPath(folder.path, folder.repositoryId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(documents => {
+        this.selectedFiles = documents
+          .filter(doc => this.dashboardContentService['contentApiService'].isFile(doc))
+          .map(doc => this.mapDocumentToDashboardFile(doc));
+      });
+  }
+
+  deleteFolder(folder: DashboardFolder, event: Event): void {
+    event.stopPropagation();
+    this.dashboardContentService.deleteFolder(folder.repositoryId, folder.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          if (this.selectedFolder?.id === folder.id) {
+            this.selectedFolder = null;
+            this.selectedFiles = [];
+          }
+        },
+        error: (error) => {
+          console.error('Error deleting folder:', error);
+        }
+      });
+  }
+
+  toggleFolderOptions(folder: DashboardFolder, event: Event): void {
     event.stopPropagation();
     this.folderOptionsFolder = this.folderOptionsFolder === folder ? null : folder;
     this.repoOptionsRepo = null;
   }
 
-  // File methods
+  // File methods - These will be implemented when we add file upload functionality
   addFile(): void {
-    if (!this.selectedRepo || !this.selectedFolder || !this.newFileName.trim()) return;
-    this.isUploading = true;
-    let content = this.newFileContent;
-    if (this.newFileType === 'png' || this.newFileType === 'jpg' || this.newFileType === 'jpeg') {
-      content = this.newFileBase64;
-    }
-    const file: FileItem = {
-      id: this.generateId(),
-      name: this.newFileName.trim(),
-      type: this.newFileType,
-      content,
-      addedBy: this.user?.name || this.user?.email || 'Unknown',
-      timestamp: new Date().toISOString()
-    };
-    this.contentService.addFile(this.selectedRepo.id, this.selectedFolder.id, file);
-    this.newFileName = '';
-    this.newFileType = 'json';
-    this.newFileContent = '';
-    this.newFileBase64 = '';
-    this.loadRepositories();
-    this.showDropzoneText = true;
-    this.showFileFormFolderId = null;
-    setTimeout(() => { this.isUploading = false; }, 600); // Simulate loading
+    // TODO: Implement file upload using Content Services API
+    console.log('File upload functionality to be implemented');
   }
   onFileSelected(event: any): void {
-    const files: FileList = event.target.files;
-    if (!files || !files.length) return;
-    this.isUploading = true;
-    let processed = 0;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        const base64 = e.target.result.split(',')[1];
-        const fileItem: FileItem = {
-          id: this.generateId(),
-          name: file.name,
-          type: file.type.split('/')[1] as any, // e.g. 'png', 'jpg', 'jpeg'
-          content: base64,
-          addedBy: this.user?.name || this.user?.email || 'Unknown',
-          timestamp: new Date().toISOString()
-        };
-        this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
-        processed++;
-        if (processed === files.length) {
-          this.isUploading = false;
-          this.loadRepositories();
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+    // TODO: Implement file upload using Content Services API
+    console.log('File upload functionality to be implemented');
   }
-  deleteFile(file: FileItem, event: Event): void {
+  deleteFile(file: DashboardFile, event: Event): void {
     event.stopPropagation();
-    if (!this.selectedRepo || !this.selectedFolder) return;
-    this.contentService.deleteFile(this.selectedRepo.id, this.selectedFolder.id, file.id);
-    this.loadRepositories();
+    this.dashboardContentService.deleteFile(file.repositoryId, file.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          // File will be removed from the list automatically via subscription
+        },
+        error: (error) => {
+          console.error('Error deleting file:', error);
+        }
+      });
   }
 
   onDragOver(event: DragEvent): void {
@@ -1060,97 +1267,19 @@ export class DashboardComponent implements OnInit {
   onFileDrop(event: DragEvent): void {
     event.preventDefault();
     this.isDragOver = false;
-    if (!event.dataTransfer || !event.dataTransfer.files.length || !this.selectedRepo || !this.selectedFolder) return;
-    this.isUploading = true;
-    const files = event.dataTransfer.files;
-    let processed = 0;
-    const allowedTypes = ['png', 'jpg', 'jpeg', 'json', 'xml', 'txt', 'mp4', 'pdf'];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      let type: 'png' | 'jpg' | 'jpeg' | 'json' | 'xml' | 'txt' | 'mp4' | 'pdf' = 'json';
-      if (ext === 'png') type = 'png';
-      else if (ext === 'jpg') type = 'jpg';
-      else if (ext === 'jpeg') type = 'jpeg';
-      else if (ext === 'xml') type = 'xml';
-      else if (ext === 'json') type = 'json';
-      else if (ext === 'txt') type = 'txt';
-      else if (ext === 'mp4') type = 'mp4';
-      else if (ext === 'pdf') type = 'pdf';
-      if (!allowedTypes.includes(type)) continue;
-      const addedBy = this.user?.name || this.user?.email || 'Unknown';
-      const timestamp = new Date().toISOString();
-
-      if (type === 'png' || type === 'jpg' || type === 'jpeg' || type === 'mp4' || type === 'pdf') {
-        const reader = new FileReader();
-        reader.onload = (e: any) => {
-          const base64 = e.target.result.split(',')[1];
-          const img = new Image();
-          img.onload = () => {
-            const fileItem: FileItem = {
-              id: this.generateId(),
-              name: file.name,
-              type,
-              content: base64,
-              addedBy,
-              timestamp
-            };
-            this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
-            processed++;
-            if (processed === files.length) {
-              this.isUploading = false;
-              this.loadRepositories();
-            }
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e: any) => {
-          const fileItem: FileItem = {
-            id: this.generateId(),
-            name: file.name,
-            type,
-            content: e.target.result,
-            addedBy,
-            timestamp
-          };
-          this.contentService.addFile(this.selectedRepo!.id, this.selectedFolder!.id, fileItem);
-          processed++;
-          if (processed === files.length) {
-            this.isUploading = false;
-            this.loadRepositories();
-          }
-        };
-        reader.readAsText(file);
-      }
-    }
+    // TODO: Implement file drop using Content Services API
+    console.log('File drop functionality to be implemented');
   }
 
   confirmPreviewUpload(): void {
-    if (!this.previewFile || !this.selectedRepo || !this.selectedFolder) return;
-    this.isUploading = true;
-    const fileItem: FileItem = {
-      id: this.generateId(),
-      name: this.previewFile.name,
-      type: this.previewFile.type as any,
-      content: this.previewFile.type === 'png' || this.previewFile.type === 'jpg' || this.previewFile.type === 'jpeg' ? this.previewFile.base64 : this.previewFile.base64,
-      addedBy: this.previewFile.addedBy,
-      timestamp: this.previewFile.timestamp
-    };
-    this.contentService.addFile(this.selectedRepo.id, this.selectedFolder.id, fileItem);
-    this.previewFile = null;
-    this.loadRepositories();
-    this.showDropzoneText = true;
-    this.showFileFormFolderId = null;
-    setTimeout(() => { this.isUploading = false; }, 600); // Simulate loading
+    // TODO: Implement preview upload using Content Services API
+    console.log('Preview upload functionality to be implemented');
   }
   cancelPreviewUpload(): void {
     this.previewFile = null;
   }
 
-  // Utility
+  // Utility - No longer needed as IDs come from API
   generateId(): string {
     return Math.random().toString(36).substr(2, 9);
   }
@@ -1249,7 +1378,7 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  openPreviewModal(file: FileItem) {
+  openPreviewModal(file: DashboardFile) {
     this.previewModalFile = file;
   }
 
@@ -1257,29 +1386,12 @@ export class DashboardComponent implements OnInit {
     this.previewModalFile = null;
   }
 
-  // Utility to get all folders across all repos
-  getAllFolders(): Array<Folder & { repoId: string, repoName: string }> {
-    return this.repositories.flatMap(r => r.folders.map(f => ({ ...f, repoId: r.id, repoName: r.name })));
-  }
-  // Utility to get recent files (7 most recent)
-  getAllFiles(): (FileItem & { folderName: string, repoName: string })[] {
-    const files: (FileItem & { folderName: string, repoName: string })[] = [];
-    for (const repo of this.repositories) {
-      for (const folder of repo.folders) {
-        for (const file of folder.files) {
-          files.push({ ...file, folderName: folder.name, repoName: repo.name });
-        }
-      }
-    }
-    return files.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 7);
-  }
   // Handler for folder grid click
-  selectFolderFromGrid(folder: Folder & { repoId: string, repoName: string }): void {
-    const repo = this.repositories.find(r => r.id === folder.repoId);
+  selectFolderFromGrid(folder: DashboardFolder): void {
+    const repo = this.repositories.find(r => r.id === folder.repositoryId);
     if (repo) {
       this.selectedRepo = repo;
-      this.selectedFolder = repo.folders.find(f => f.id === folder.id) || null;
-      this.selectedFiles = this.selectedFolder?.files || [];
+      this.selectFolder(folder);
     }
   }
   // Floating button handlers
@@ -1289,10 +1401,17 @@ export class DashboardComponent implements OnInit {
   closeAddRepoModal() { this.showAddRepoModal = false; this.newRepoName = ''; }
   addRepoFromModal() {
     if (this.newRepoName.trim()) {
-      this.contentService.addRepository(this.newRepoName.trim());
-      this.newRepoName = '';
-      this.closeAddRepoModal();
-      this.loadRepositories();
+      this.dashboardContentService.createRepository(this.newRepoName.trim())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.newRepoName = '';
+            this.closeAddRepoModal();
+          },
+          error: (error) => {
+            console.error('Error creating repository:', error);
+          }
+        });
     }
   }
   openAddFolder(): void { this.showAddFolderModal = true; this.showAddMenu = false; }
@@ -1300,21 +1419,41 @@ export class DashboardComponent implements OnInit {
   confirmAddFolder(): void {
     if (this.addFolderMode === 'existing') {
       if (this.addFolderRepoId && this.newFolderName.trim()) {
-        this.contentService.addFolder(this.addFolderRepoId, this.newFolderName.trim());
-        this.newFolderName = '';
-        this.closeAddFolderModal();
-        this.loadRepositories();
+        this.dashboardContentService.createFolder(this.addFolderRepoId, this.newFolderName.trim())
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.newFolderName = '';
+              this.closeAddFolderModal();
+            },
+            error: (error) => {
+              console.error('Error creating folder:', error);
+            }
+          });
       }
     } else if (this.addFolderMode === 'new') {
       if (this.newRepoNameForFolder.trim() && this.newFolderName.trim()) {
-        const repoId = this.contentService.addRepository(this.newRepoNameForFolder.trim());
-        if (repoId) {
-          this.contentService.addFolder(repoId, this.newFolderName.trim());
-        }
-        this.newRepoNameForFolder = '';
-        this.newFolderName = '';
-        this.closeAddFolderModal();
-        this.loadRepositories();
+        this.dashboardContentService.createRepository(this.newRepoNameForFolder.trim())
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: (repo) => {
+              this.dashboardContentService.createFolder(repo.id, this.newFolderName.trim())
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                  next: () => {
+                    this.newRepoNameForFolder = '';
+                    this.newFolderName = '';
+                    this.closeAddFolderModal();
+                  },
+                  error: (error) => {
+                    console.error('Error creating folder:', error);
+                  }
+                });
+            },
+            error: (error) => {
+              console.error('Error creating repository:', error);
+            }
+          });
       }
     }
   }
@@ -1359,7 +1498,41 @@ export class DashboardComponent implements OnInit {
     this.fabPlusOffsetY = 0;
   }
 
-  showFilePreview(file: any, event: MouseEvent) {
+  // File preview methods
+  private filePreviewCache = new Map<string, string>();
+
+  getFilePreviewUrl(fileId: string): string {
+    if (!this.filePreviewCache.has(fileId)) {
+      this.dashboardContentService.getFileContent(fileId)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(blob => {
+          const url = URL.createObjectURL(blob);
+          this.filePreviewCache.set(fileId, url);
+          this.cdr.detectChanges(); // Force change detection after setting URL
+        });
+      return '';
+    }
+    return this.filePreviewCache.get(fileId) || '';
+  }
+
+  getFilePreviewText(fileId: string): string {
+    if (!this.filePreviewCache.has(fileId)) {
+      this.dashboardContentService.getFileContent(fileId)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(blob => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.filePreviewCache.set(fileId, reader.result as string);
+            this.cdr.detectChanges(); // Force change detection after setting text
+          };
+          reader.readAsText(blob);
+        });
+      return '';
+    }
+    return this.filePreviewCache.get(fileId) || '';
+  }
+
+  showFilePreview(file: DashboardFile, event: MouseEvent) {
     // Clear any existing timeout
     if (this.hoverTimeout) {
       clearTimeout(this.hoverTimeout);
@@ -1390,15 +1563,91 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  // Utility method to map Document to DashboardFile
+  private mapDocumentToDashboardFile(doc: Document): DashboardFile {
+    const repository = this.repositories.find(r => r.id === doc.repositoryId);
+    const pathParts = doc.path.split('/');
+    const fileName = pathParts.pop() || doc.name || 'Unknown';
+    const folderPath = pathParts.join('/') || '/';
+    const folderName = pathParts[pathParts.length - 1] || 'Root';
+
+    return {
+      id: doc.id,
+      name: fileName,
+      path: doc.path,
+      repositoryId: doc.repositoryId,
+      repositoryName: repository?.name || 'Unknown Repository',
+      folderName,
+      folderPath,
+      type: this.getFileExtension(fileName),
+      size: this.formatFileSize(doc.contentStreamLength || 0),
+      lastModified: doc.lastModificationDate,
+      createdBy: doc.createdBy || 'Unknown',
+      iconPath: this.getFileTypeIcon(this.getFileExtension(fileName))
+    };
+  }
+
+  private getFileExtension(fileName: string): string {
+    return fileName.split('.').pop()?.toLowerCase() || '';
+  }
+
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
   handleCreateExperience(event: any) {
-    // Handle the created experience
+    // Handle the created experience with path information
     console.log('Experience created:', event);
+    
+    // Create the experience as a document in the selected location
+    if (event.repositoryId && event.targetPath) {
+      const experienceDocument = {
+        repositoryId: event.repositoryId,
+        path: event.targetPath,
+        type: 'cmis:document',
+        name: event.title,
+        title: event.title,
+        properties: {
+          'cmis:name': event.title,
+          'experience:baseUrl': event.baseUrl,
+          'experience:defaultLocale': event.defaultLocale,
+          'experience:additionalLocales': event.additionalLocales,
+          'experience:thumbnail': event.thumbnail ? event.thumbnail.name : null
+        }
+      };
+
+      // Save the experience to the content services
+      this.dashboardContentService.saveContent(experienceDocument)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (savedExperience: Document) => {
+            console.log('Experience saved successfully:', savedExperience);
+            // Refresh the content to show the new experience
+            this.refreshContent();
+          },
+          error: (error: any) => {
+            console.error('Error saving experience:', error);
+          }
+        });
+    }
+    
     this.showCreateExperienceModal = false;
-    this.loadRepositories(); // Refresh repositories to include the new one
+  }
+
+  refreshContent(): void {
+    this.dashboardContentService.refreshData().subscribe();
   }
 
   onSidebarVisibilityChange(isVisible: boolean): void {
     this.sidebarVisible = isVisible;
+  }
+
+  onNavigationChange(page: string): void {
+    this.currentPage = page as 'dashboard' | 'content' | 'settings';
   }
 
   getFileTypeIcon(type: string): string {

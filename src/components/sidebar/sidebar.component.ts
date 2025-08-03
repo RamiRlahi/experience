@@ -252,6 +252,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Input() userName: string = 'User';
   @Input() activeItem: string = 'dashboard';
   @Output() sidebarVisibilityChange = new EventEmitter<boolean>();
+  @Output() navigationChange = new EventEmitter<string>();
 
   isVisible = false;
   private hideTimeout: any = null;
@@ -292,7 +293,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   setActive(item: string): void {
     this.activeItem = item;
-    // You can emit an event here to notify parent component
-    // this.activeItemChange.emit(item);
+    this.navigationChange.emit(item);
   }
 } 

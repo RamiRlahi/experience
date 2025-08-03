@@ -4,11 +4,13 @@ com\example\content\services\api\RepositoryManagementApi.class
 com\example\content\services\model\ContentItemProperty.class
 com\example\content\services\model\DuplicateRequest.class
 com\example\content\services\model\ItemToRevert.class
+com\example\content\services\ContentServicesApplication$CorsHandler.class
 com\example\content\services\invoker\ApiException.class
 com\example\content\services\invoker\JSON.class
 com\example\content\services\model\Repository.class
 com\example\content\services\model\DocumentUpload.class
 com\example\content\services\model\ItemImportResult.class
+com\example\content\services\ContentServicesApplication$ApiHandler.class
 com\example\content\services\controller\AuthController.class
 com\example\content\services\api\ResourceImportApi$1.class
 com\example\content\services\api\ContentExportApi.class

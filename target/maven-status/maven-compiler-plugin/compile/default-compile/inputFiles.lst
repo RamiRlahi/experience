@@ -1,57 +1,57 @@
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\model\AuthRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ServerVariable.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentToSave.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicateResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Rendition.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\RFC3339DateFormat.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentStreamApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ImportedContentItem.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentDuplicationApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentUploadApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\controller\AuthController.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SearchRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemToRevert.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentManagementApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ContentRelationships.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\SignedUrlApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\RepositoryManagementApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\AntivirusScanTrigger.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicateRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemImportResult.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentUpload.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\ContentServicesClient.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentImportApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiClient.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemToDuplicate.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\StatusMessage.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentStreamByPathApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RelationshipTarget.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SignedUrlRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Document.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\model\User.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\AbstractOpenApiSchema.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\Pair.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicatedItem.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\Configuration.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SignedUrlResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ContentItemProperty.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RemoveRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\JSON.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\model\ApiResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\model\AuthResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentSearchApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ResourceImportApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ServerConfiguration.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Repository.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\QueryRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\RetentionPoliciesManagementApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\ContentServicesApplication.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentExportApi.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RetentionPolicy.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiException.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentSignedUrlRequest.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentSignedUrlResponse.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentToMove.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\src\main\java\com\example\content\services\KeycloakConfig.java
-C:\Users\Lamia Lazrak\Desktop\Value\project\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentRelationship.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ContentItemProperty.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicateResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicatedItem.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DuplicateRequest.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\ContentServicesApplication.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\model\AuthRequest.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiClient.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentStreamByPathApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\JSON.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentImportApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ResourceImportApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ServerVariable.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Document.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\model\User.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\QueryRequest.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SignedUrlRequest.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentSearchApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\SignedUrlApi.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\model\ApiResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemToRevert.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentManagementApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemToDuplicate.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\StatusMessage.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\AntivirusScanTrigger.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Repository.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ServerConfiguration.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentSignedUrlResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentToSave.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentUploadApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\RetentionPoliciesManagementApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RelationshipTarget.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\RFC3339DateFormat.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\AbstractOpenApiSchema.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentToMove.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ImportedContentItem.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentSignedUrlRequest.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RetentionPolicy.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\controller\AuthController.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentRelationship.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\ContentServicesClient.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentStreamApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiException.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\DocumentUpload.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\Pair.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentExportApi.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\KeycloakConfig.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ContentRelationships.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\ContentDuplicationApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\RemoveRequest.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\Configuration.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SearchRequest.java
+C:\Users\rami\Desktop\work\experience\src\main\java\com\example\content\services\model\AuthResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\invoker\ApiResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\Rendition.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\SignedUrlResponse.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\api\RepositoryManagementApi.java
+C:\Users\rami\Desktop\work\experience\target\generated-sources\api\src\gen\java\main\com\example\content\services\model\ItemImportResult.java

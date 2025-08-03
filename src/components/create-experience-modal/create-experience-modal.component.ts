@@ -1,6 +1,9 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { DashboardContentService } from '../../services/dashboard-content.service';
+import { Repository } from '../../services/content-services-api.service';
+import { DashboardFolder } from '../../models/content.model';
 
 @Component({
   selector: 'app-create-experience-modal',
@@ -12,6 +15,22 @@ import { CommonModule } from '@angular/common';
         <h2>Create New Experience</h2>
         <p class="subtitle">create your new experience</p>
         <form [formGroup]="form" (ngSubmit)="onCreate()">
+          <label>Repository
+            <select formControlName="selectedRepository" (change)="onRepositoryChange()">
+              <option value="">Select a repository</option>
+              <option *ngFor="let repo of repositories" [value]="repo.id">{{ repo.name }}</option>
+            </select>
+          </label>
+          <label>Folder (Optional)
+            <select formControlName="selectedFolder" (change)="onFolderChange()">
+              <option value="">Select a folder (optional)</option>
+              <option *ngFor="let folder of availableFolders" [value]="folder.id">{{ folder.name }}</option>
+            </select>
+          </label>
+          <label>Target Path
+            <input formControlName="targetPath" type="text" placeholder="Path will be generated automatically" readonly />
+            <div class="path-hint">Path where the experience will be created</div>
+          </label>
           <label>Title
             <input formControlName="title" type="text" placeholder="Title" />
           </label>
@@ -49,7 +68,7 @@ import { CommonModule } from '@angular/common';
           <div class="upload-hint">Only support .png/.jpeg and Maximum size: 1000MB</div>
           <div class="modal-actions">
             <button type="button" class="cancel-btn" (click)="onClose()">Cancel</button>
-            <button type="submit" class="create-btn" [disabled]="form.invalid">Create</button>
+            <button type="submit" class="create-btn" [disabled]="form.invalid || !form.get('selectedRepository')?.value">Create</button>
           </div>
         </form>
       </div>
@@ -70,8 +89,10 @@ import { CommonModule } from '@angular/common';
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(30, 41, 59, 0.18);
       padding: 1.5rem 1.5rem 1.5rem 1.5rem;
-      min-width: 350px;
-      max-width: 400px;
+      min-width: 400px;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -102,7 +123,7 @@ import { CommonModule } from '@angular/common';
       flex-direction: column;
       gap: 0.2rem;
     }
-    input[type="text"] {
+    input[type="text"], select {
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       padding: 0.5rem 0.8rem;
@@ -112,8 +133,13 @@ import { CommonModule } from '@angular/common';
       outline: none;
       transition: border 0.2s;
     }
-    input[type="text"]:focus {
+    input[type="text"]:focus, select:focus {
       border-color: #2563eb;
+    }
+    .path-hint {
+      color: #64748b;
+      font-size: 0.8rem;
+      margin-top: 0.2rem;
     }
     .upload-area {
       background: #f7f9fb;
@@ -226,7 +252,7 @@ import { CommonModule } from '@angular/common';
     }
   `],
 })
-export class CreateExperienceModalComponent {
+export class CreateExperienceModalComponent implements OnInit {
   @Input() show = false;
   @Output() close = new EventEmitter<void>();
   @Output() create = new EventEmitter<any>();
@@ -235,9 +261,17 @@ export class CreateExperienceModalComponent {
   dragOver = false;
   thumbnail: File | null = null;
   thumbnailUrl: string | null = null;
+  repositories: Repository[] = [];
+  availableFolders: DashboardFolder[] = [];
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    private dashboardContentService: DashboardContentService
+  ) {
     this.form = this.fb.group({
+      selectedRepository: ['', Validators.required],
+      selectedFolder: [''],
+      targetPath: [''],
       title: ['', Validators.required],
       baseUrl: ['', Validators.required],
       defaultLocale: ['', Validators.required],
@@ -245,15 +279,91 @@ export class CreateExperienceModalComponent {
     });
   }
 
+  ngOnInit(): void {
+    this.loadRepositories();
+    
+    // Listen for title changes to update target path
+    this.form.get('title')?.valueChanges.subscribe(() => {
+      this.updateTargetPath();
+    });
+  }
+
+  loadRepositories(): void {
+    this.dashboardContentService.repositories$.subscribe(repositories => {
+      this.repositories = repositories;
+    });
+  }
+
+  onRepositoryChange(): void {
+    const repositoryId = this.form.get('selectedRepository')?.value;
+    if (repositoryId) {
+      this.loadFoldersForRepository(repositoryId);
+    } else {
+      this.availableFolders = [];
+      this.form.get('selectedFolder')?.setValue('');
+    }
+    this.updateTargetPath();
+  }
+
+  onFolderChange(): void {
+    this.updateTargetPath();
+  }
+
+  loadFoldersForRepository(repositoryId: string): void {
+    this.dashboardContentService.getFoldersForRepository(repositoryId).subscribe(folders => {
+      this.availableFolders = folders;
+    });
+  }
+
+  updateTargetPath(): void {
+    const repositoryId = this.form.get('selectedRepository')?.value;
+    const folderId = this.form.get('selectedFolder')?.value;
+    const title = this.form.get('title')?.value;
+
+    if (!repositoryId) {
+      this.form.get('targetPath')?.setValue('');
+      return;
+    }
+
+    const repository = this.repositories.find(repo => repo.id === repositoryId);
+    const folder = this.availableFolders.find(f => f.id === folderId);
+
+    let path = `/${repository?.name || 'repository'}`;
+    if (folder) {
+      path += `/${folder.name}`;
+    }
+    if (title) {
+      path += `/${title}`;
+    }
+
+    this.form.get('targetPath')?.setValue(path);
+  }
+
   onClose() {
+    this.resetForm();
     this.close.emit();
   }
 
   onCreate() {
     if (this.form.valid) {
-      this.create.emit({ ...this.form.value, thumbnail: this.thumbnail });
+      const formData = {
+        ...this.form.value,
+        thumbnail: this.thumbnail,
+        repositoryId: this.form.get('selectedRepository')?.value,
+        folderId: this.form.get('selectedFolder')?.value,
+        targetPath: this.form.get('targetPath')?.value
+      };
+      this.create.emit(formData);
+      this.resetForm();
       this.onClose();
     }
+  }
+
+  resetForm(): void {
+    this.form.reset();
+    this.thumbnail = null;
+    this.thumbnailUrl = null;
+    this.availableFolders = [];
   }
 
   onDragOver(event: DragEvent) {
