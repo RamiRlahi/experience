@@ -32,7 +32,7 @@ public class ContentServicesApplication {
             ContentServicesClient.initialize();
             
             // Create HTTP server
-            HttpServer server = HttpServer.create(new InetSocketAddress("localhost", PORT), 0);
+            HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", PORT), 0);
             
             // Add CORS headers to all responses
             server.createContext("/client-api", new CorsHandler(new ApiHandler()));
@@ -68,6 +68,7 @@ public class ContentServicesApplication {
         public void handle(HttpExchange exchange) throws IOException {
             // Add CORS headers
             exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "http://localhost:4200");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "http://172.28.92.29:4200");
             exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
             exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, Authorization");
             exchange.getResponseHeaders().add("Access-Control-Allow-Credentials", "true");

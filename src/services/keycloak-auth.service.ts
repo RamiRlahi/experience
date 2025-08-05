@@ -8,10 +8,10 @@ import { User, LoginRequest, RegisterRequest, AuthResponse, ApiResponse } from '
   providedIn: 'root'
 })
 export class KeycloakAuthService {
-  private readonly API_BASE_URL = 'http://localhost:8080'; // Java backend URL
-  private readonly KEYCLOAK_BASE_URL = 'http://localhost:8080'; // Keycloak server URL
-  private readonly REALM = 'myrealm';
-  private readonly CLIENT_ID = 'angular-client';
+  private readonly API_BASE_URL = 'http://ips-edge-edge-devc.apps.ocp-uat.biat.int/api/content-service'; // Java backend URL
+  private readonly KEYCLOAK_BASE_URL = 'http://172.28.92.29:8080/auth'; // Keycloak server URL
+  private readonly REALM = 'biat-bank-employee';
+  private readonly CLIENT_ID = 'bb-tooling-client';
   
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();

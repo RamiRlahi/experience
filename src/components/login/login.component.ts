@@ -23,7 +23,7 @@ export class LoginComponent implements OnInit {
     private route: ActivatedRoute
   ) {
     this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
+      username: ['', Validators.required],
       password: ['', Validators.required]
     });
   }
@@ -40,9 +40,9 @@ export class LoginComponent implements OnInit {
       this.loading = true;
       this.errorMessage = '';
 
-      const { email, password } = this.loginForm.value;
+      const { username, password } = this.loginForm.value;
 
-      this.keycloakAuthService.login({ email, password }).subscribe({
+      this.keycloakAuthService.login({ email: username, password }).subscribe({
         next: (response) => {
           this.loading = false;
           if (response.success) {
@@ -67,8 +67,8 @@ export class LoginComponent implements OnInit {
 
   fillDemoCredentials(): void {
     this.loginForm.patchValue({
-      email: 'testuser',
-      password: 'password123'
+      username: 'admin',
+      password: 'admin'
     });
   }
 }

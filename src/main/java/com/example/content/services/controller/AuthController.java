@@ -29,7 +29,7 @@ public class AuthController {
                     .build();
 
             Request keycloakRequest = new Request.Builder()
-                    .url("http://localhost:8080/realms/myrealm/protocol/openid-connect/token")
+                    .url("http://172.28.92.29:8080/auth/realms/myrealm/protocol/openid-connect/token")
                     .post(formBody)
                     .build();
 
@@ -105,7 +105,7 @@ public class AuthController {
                     .build();
 
             Request keycloakRequest = new Request.Builder()
-                    .url("http://localhost:8080/realms/myrealm/protocol/openid-connect/token")
+                    .url("http://172.28.92.29:8080/auth/realms/myrealm/protocol/openid-connect/token")
                     .post(formBody)
                     .build();
 

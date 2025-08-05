@@ -59,7 +59,7 @@ export interface Repository {
   providedIn: 'root'
 })
 export class ContentServicesApiService {
-  private readonly API_BASE_URL = 'http://localhost:3000/client-api';
+  private readonly API_BASE_URL = 'http://ips-edge-edge-devc.apps.ocp-uat.biat.int/api/content-service';
   private readonly repositoriesSubject = new BehaviorSubject<Repository[]>([]);
   private readonly documentsSubject = new BehaviorSubject<Document[]>([]);
   

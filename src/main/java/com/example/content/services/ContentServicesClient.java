@@ -14,7 +14,7 @@ public class ContentServicesClient {
     private static OkHttpClient httpClient;
     
     // Content Services API configuration
-    private static final String CONTENT_SERVICES_URL = "http://localhost:8080/client-api";
+    private static final String CONTENT_SERVICES_URL = "http://ips-edge-edge-devc.apps.ocp-uat.biat.int/api/content-service";
     private static final int TIMEOUT_SECONDS = 30;
     
     public static void initialize() {

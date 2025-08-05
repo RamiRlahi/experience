@@ -23,11 +23,11 @@ export const appConfig: ApplicationConfig = {
 // Content Services API Configuration
 export const CONTENT_SERVICES_CONFIG = {
   // Update this URL to point to your Content Services API
-  API_BASE_URL: 'http://localhost:8080/client-api',
+  API_BASE_URL: 'http://ips-edge-edge-devc.apps.ocp-uat.biat.int/api/content-service',
   
   // Keycloak Configuration (should match your Keycloak setup)
   KEYCLOAK_CONFIG: {
-    url: 'http://localhost:8080',
+    url: 'http://172.28.92.29:8080/auth',
     realm: 'myrealm',
     clientId: 'angular-client'
   }

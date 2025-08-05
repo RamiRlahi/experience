@@ -12,11 +12,12 @@ public class KeycloakConfig {
     private static Keycloak keycloak;
     
     // Keycloak configuration
-    private static final String KEYCLOAK_URL = "http://localhost:8080";
-    private static final String REALM = "myrealm";
-    private static final String CLIENT_ID = "angular-client";
+    private static final String KEYCLOAK_URL = "http://172.28.92.29:8080/auth";
+    private static final String REALM = "biat-bank-employee";
+    private static final String CLIENT_ID = "bb-tooling-client";
     private static final String USERNAME = "admin";
-    private static final String PASSWORD = "password123";
+    private static final String PASSWORD = "admin";
+    
     
     public static void initialize() {
         try {

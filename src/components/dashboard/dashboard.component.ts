@@ -1507,8 +1507,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe(blob => {
           const url = URL.createObjectURL(blob);
-          this.filePreviewCache.set(fileId, url);
-          this.cdr.detectChanges(); // Force change detection after setting URL
+          setTimeout(() => {
+            this.filePreviewCache.set(fileId, url);
+            this.cdr.detectChanges();
+          });
         });
       return '';
     }
@@ -1522,8 +1524,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .subscribe(blob => {
           const reader = new FileReader();
           reader.onload = () => {
-            this.filePreviewCache.set(fileId, reader.result as string);
-            this.cdr.detectChanges(); // Force change detection after setting text
+            setTimeout(() => {
+              this.filePreviewCache.set(fileId, reader.result as string);
+              this.cdr.detectChanges();
+            });
           };
           reader.readAsText(blob);
         });
